@@ -155,25 +155,27 @@ void rst::rasterizer::draw(rst::pos_buf_id pos_buffer, rst::ind_buf_id ind_buffe
                 mvp * to_vec4(buf[i[2]], 1.0f)
         };
 
+        // 每个vec的元素 / vec[3]，将齐次坐标的点normalize，归一化。我看有的地方也叫透视除法
         for (auto& vec : v) {
-            vec /= vec.w();
+            vec /= vec.w();    
         }
 
         for (auto & vert : v)
         {
             vert.x() = 0.5*width*(vert.x()+1.0);
             vert.y() = 0.5*height*(vert.y()+1.0);
-            vert.z() = vert.z() * f1 + f2;
+            // vert.z() = vert.z() * f1 + f2;
+            vert.z() = vert.z();    // 这是我的修改，理论上应该不需要进行z的缩放
         }
 
         for (int i = 0; i < 3; ++i)
         {
-            t.setVertex(i, v[i].head<3>());
-            t.setVertex(i, v[i].head<3>());
-            t.setVertex(i, v[i].head<3>());
+            t.setVertex(i, v[i].head<3>());   // 同样的语句执行三次，修改后去掉
+            // t.setVertex(i, v[i].head<3>());
+            // t.setVertex(i, v[i].head<3>());
         }
 
-        t.setColor(0, 255.0,  0.0,  0.0);
+        t.setColor(0, 255.0,  0.0,  0.0);    // 设置顶点的颜色？
         t.setColor(1, 0.0  ,255.0,  0.0);
         t.setColor(2, 0.0  ,  0.0,255.0);
 
