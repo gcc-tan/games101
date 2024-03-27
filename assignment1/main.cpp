@@ -7,6 +7,7 @@
 
 constexpr double MY_PI = 3.1415926;
 
+// 不太明白为什么只要讲相机移动到原点即可，不是说相机要朝-z看吗？为什么没有对look at direction进行调整？
 Eigen::Matrix4f get_view_matrix(Eigen::Vector3f eye_pos)
 {
     Eigen::Matrix4f view = Eigen::Matrix4f::Identity();
