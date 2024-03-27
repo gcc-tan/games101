@@ -228,6 +228,9 @@ int rst::rasterizer::get_index(int x, int y)
     return (height-y)*width + x;
 }
 
+
+// width对应x轴（屏幕宽度），heigt对应y轴（屏幕高度）
+// opencv的坐标原点在屏幕的左上角（可以看下，函数输入是课程坐标，用课程坐标表示的左上角是(0, height) ，带入ind的计算可以得到ind = 0，因此可以得出结论），本次课程使用的坐标原点是左下角。
 void rst::rasterizer::set_pixel(const Eigen::Vector3f& point, const Eigen::Vector3f& color)
 {
     //old index: auto ind = point.y() + point.x() * width;
