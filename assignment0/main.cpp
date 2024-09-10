@@ -1,5 +1,5 @@
 #include <iostream>
-#include <eigen3/Eigen/Core>
+#include <Eigen/Dense>    // #include <eigen3/Eigen/Core> 如果仅使用这个头文件，使用叉乘cross这个函数会出现链接错误，因为这是个头文件库
 #include <cmath>
 #include <vector>
 
@@ -43,5 +43,17 @@ int main()
     std::cout << test[0] << std::endl;
     std::cout << test[1] << std::endl;
     std::cout << test[2] << std::endl;
+
+
+    // 加入一个叉乘的例子，如果要计算点c是在ab向量的左侧还是右侧，需要用到叉乘
+    // 原理就是计算ca，和cb向量，然后叉乘，如果叉乘向量z为整数，就是在左侧，这个可以用右手定则判定
+    // 需要将向量的z坐标置为0，因为本质还是xy平面的二维向量
+    std::cout << "============== cross product ==========" << std::endl;
+    Eigen::Vector3d a(0, 0, 0), b(2, 2, 0), c(0, 1, 0);
+    auto ca = c - a;
+    auto cb = c - b;
+    std::cout << ca.cross(cb) << std::endl;
+    std::cout << "new ca" << std::endl;
+    std::cout << ca << std::endl;
     return 0;
 }
