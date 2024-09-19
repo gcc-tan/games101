@@ -4,6 +4,7 @@
 //
 
 #include <algorithm>
+#include <limits>
 #include <vector>
 #include "rasterizer.hpp"
 #include <opencv2/opencv.hpp>
@@ -42,7 +43,27 @@ auto to_vec4(const Eigen::Vector3f& v3, float w = 1.0f)
 
 static bool insideTriangle(int x, int y, const Vector3f* _v)
 {   
-    // TODO : Implement this function to check if the point (x, y) is inside the triangle represented by _v[0], _v[1], _v[2]
+    // Implement this function to check if the point (x, y) is inside the triangle represented by _v[0], _v[1], _v[2]
+    // 参考https://blog.csdn.net/dracularking/article/details/2217180 或者课件即可
+    Eigen::Vector3f m(x, y, 0);
+    Eigen::Vector3f m0 = m - _v[0];
+    Eigen::Vector3f m1 = m - _v[1];
+    Eigen::Vector3f m2 = m - _v[2];
+
+    // 点v0，v1，v2是顺时针排列，只需要保证，按照顺序一圈下来叉乘的结果同号，那就说明在三角形内部
+    // 可以想象一下，m点在三角形内部，那么按照顺时针的顺序的m0，m1，m2叉乘的向量方向肯定是一致的
+    float r1 = m0.cross(m1).z();
+    float r2 = m1.cross(m2).z();
+    float r3 = m2.cross(m0).z();
+
+    // 这里浮点数的比较确实有点害怕
+    // https://stackoverflow.com/questions/13767744/detecting-and-adjusting-for-negative-zero
+    // https://stackoverflow.com/questions/4915462/how-should-i-do-floating-point-comparison
+    if ((r1 > 0 && r2 > 0 && r3 > 0) || (r1 < 0 && r2 < 0 && r3 < 0))
+    {
+        return true;
+    }
+    return false;
 }
 
 static std::tuple<float, float, float> computeBarycentric2D(float x, float y, const Vector3f* v)
@@ -94,6 +115,8 @@ void rst::rasterizer::draw(pos_buf_id pos_buffer, ind_buf_id ind_buffer, col_buf
         auto col_y = col[i[1]];
         auto col_z = col[i[2]];
 
+        // 这个三角形的颜色不就是纯色的吗？
+        // 这个代码用三个顶点三种颜色什么含义？
         t.setColor(0, col_x[0], col_x[1], col_x[2]);
         t.setColor(1, col_y[0], col_y[1], col_y[2]);
         t.setColor(2, col_z[0], col_z[1], col_z[2]);
@@ -106,16 +129,40 @@ void rst::rasterizer::draw(pos_buf_id pos_buffer, ind_buf_id ind_buffer, col_buf
 void rst::rasterizer::rasterize_triangle(const Triangle& t) {
     auto v = t.toVector4();
     
-    // TODO : Find out the bounding box of current triangle.
+    // Find out the bounding box of current triangle.
     // iterate through the pixel and find if the current pixel is inside the triangle
+    int xmin = std::min({v[0].x(), v[1].x(), v[2].x()});
+    int xmax = std::max({v[0].x(), v[1].x(), v[2].x()});
+    int ymin = std::min({v[0].y(), v[1].y(), v[2].y()});
+    int ymax = std::max({v[0].y(), v[1].y(), v[2].y()});
 
-    // If so, use the following code to get the interpolated z value.
-    //auto[alpha, beta, gamma] = computeBarycentric2D(x, y, t.v);
-    //float w_reciprocal = 1.0/(alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w());
-    //float z_interpolated = alpha * v[0].z() / v[0].w() + beta * v[1].z() / v[1].w() + gamma * v[2].z() / v[2].w();
-    //z_interpolated *= w_reciprocal;
 
-    // TODO : set the current pixel (use the set_pixel function) to the color of the triangle (use getColor function) if it should be painted.
+    for (int x = xmin; x <= xmax; ++x)
+    {
+        for (int y = ymin; y <= ymax; ++y)
+        {
+            if (!insideTriangle(x, y, t.v))
+            {
+                continue;
+            }
+            // If so, use the following code to get the interpolated z value.
+            //auto[alpha, beta, gamma] = computeBarycentric2D(x, y, t.v);
+            //float w_reciprocal = 1.0/(alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w());
+            //float z_interpolated = alpha * v[0].z() / v[0].w() + beta * v[1].z() / v[1].w() + gamma * v[2].z() / v[2].w();
+            //z_interpolated *= w_reciprocal;
+            auto[alpha, beta, gamma] = computeBarycentric2D(x, y, t.v);
+            float w_reciprocal = 1.0/(alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w());
+            float z_interpolated = alpha * v[0].z() / v[0].w() + beta * v[1].z() / v[1].w() + gamma * v[2].z() / v[2].w();
+            z_interpolated *= w_reciprocal;
+
+            int pos = get_index(x, y);
+            if (z_interpolated < depth_buf[pos])
+            {
+                depth_buf[pos] = z_interpolated;
+                set_pixel(Eigen::Vector3f(x, y, 0), t.getColor());
+            }
+        }
+    }
 }
 
 void rst::rasterizer::set_model(const Eigen::Matrix4f& m)
@@ -153,6 +200,10 @@ rst::rasterizer::rasterizer(int w, int h) : width(w), height(h)
 
 int rst::rasterizer::get_index(int x, int y)
 {
+    // 转换成一维的方式
+    // (x, y)即 viewport transformation中屏幕左下角是原点，向上是y，向右是x，分别对应height，和width
+    // 但是考虑到opencv的坐标系中，屏幕的左上角才是坐标原点，因此有了set_pixel函数和这个get_index
+    // x = 0， y = height - 1是在viewport transformation坐标系中的左上角，带入此公式验证可以发现get_index返回0
     return (height-1-y)*width + x;
 }
 
