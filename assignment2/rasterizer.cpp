@@ -3,6 +3,7 @@
 // Created by goksu on 4/6/19.
 //
 
+#include <Eigen/Dense>
 #include <algorithm>
 #include <limits>
 #include <vector>
@@ -41,7 +42,7 @@ auto to_vec4(const Eigen::Vector3f& v3, float w = 1.0f)
 }
 
 
-static bool insideTriangle(int x, int y, const Vector3f* _v)
+static bool insideTriangle(float x, float y, const Vector3f* _v)
 {   
     // Implement this function to check if the point (x, y) is inside the triangle represented by _v[0], _v[1], _v[2]
     // 参考https://blog.csdn.net/dracularking/article/details/2217180 或者课件即可
@@ -124,6 +125,27 @@ void rst::rasterizer::draw(pos_buf_id pos_buffer, ind_buf_id ind_buffer, col_buf
         t.setColor(2, col_z[0], col_z[1], col_z[2]);
 
         rasterize_triangle(t);
+
+        if (enable_ssaa())
+        {
+            Eigen::Vector3f pixel_color;
+            for (int x = 0; x < width; ++x)
+            {
+                for (int y = 0; y < height; ++y)
+                {
+                    int pos = get_index(x, y);
+                    pixel_color.setZero();
+                    // 计算这个像素内子像素的均值
+                    // 说是ssaa，但是我感觉更像msaa https://www.zhihu.com/question/20236638
+                    for (const auto& color : ssaa_frame_buf_[pos])
+                    {
+                        pixel_color += color;
+                    }
+                    pixel_color /= ssaa_frame_buf_[pos].size();
+                    set_pixel(Eigen::Vector3f(x, y, 0), pixel_color);
+                }
+            }
+        }
     }
 }
 
@@ -142,25 +164,52 @@ void rst::rasterizer::rasterize_triangle(const Triangle& t) {
     {
         for (int y = ymin; y <= ymax; ++y)
         {
-            if (!insideTriangle(x, y, t.v))
+            if (enable_ssaa())
             {
-                continue;
+                float distance = 1.0f / (ssaa_size_ + 1);    // 1行ssaa_size_个点需要分成ssaa_size+1段
+                for (int i = 0; i < ssaa_size_ * ssaa_size_; ++i)
+                {
+                    // (x, y)作为像素内左下角的坐标，计算sub_x sub_y即子像素的坐标
+                    float sub_x = x + (i % ssaa_size_ + 1) * distance;
+                    float sub_y = y + (i / ssaa_size_ + 1) * distance;
+                    if (!insideTriangle(sub_x, sub_y, t.v))
+                    {
+                        continue;
+                    }
+                    auto[alpha, beta, gamma] = computeBarycentric2D(sub_x, sub_y, t.v);
+                    float z_interpolated = 1.0/(alpha / v[0].z() + beta / v[1].z() + gamma / v[2].z()); 
+
+                    int pos = get_index(x, y);
+                    if (z_interpolated > ssaa_depth_buf_[pos][i])
+                    {
+                        // 更新深度值和颜色值
+                        ssaa_depth_buf_[pos][i] = z_interpolated;
+                        ssaa_frame_buf_[pos][i] = t.getColor();
+                    }
+                }
             }
-            // If so, use the following code to get the interpolated z value.
-            //auto[alpha, beta, gamma] = computeBarycentric2D(x, y, t.v);
-            //float w_reciprocal = 1.0/(alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w());
-            //float z_interpolated = alpha * v[0].z() / v[0].w() + beta * v[1].z() / v[1].w() + gamma * v[2].z() / v[2].w();
-            //z_interpolated *= w_reciprocal;
-            // https://www.scratchapixel.com/lessons/3d-basic-rendering/rasterization-practical-implementation/visibility-problem-depth-buffer-depth-interpolation.html
-            auto[alpha, beta, gamma] = computeBarycentric2D(x, y, t.v);
-            float z_interpolated = 1.0/(alpha / v[0].z() + beta / v[1].z() + gamma / v[2].z());
-
-
-            int pos = get_index(x, y);
-            if (z_interpolated > depth_buf[pos])    // 向-z看，因此大的深度值才是靠近相机的
+            else 
             {
-                depth_buf[pos] = z_interpolated;
-                set_pixel(Eigen::Vector3f(x, y, 0), t.getColor());
+                if (!insideTriangle(x + 0.5, y + 0.5, t.v))
+                {
+                    continue;
+                }
+                // If so, use the following code to get the interpolated z value.
+                //auto[alpha, beta, gamma] = computeBarycentric2D(x, y, t.v);
+                //float w_reciprocal = 1.0/(alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w());
+                //float z_interpolated = alpha * v[0].z() / v[0].w() + beta * v[1].z() / v[1].w() + gamma * v[2].z() / v[2].w();
+                //z_interpolated *= w_reciprocal;
+                // https://www.scratchapixel.com/lessons/3d-basic-rendering/rasterization-practical-implementation/visibility-problem-depth-buffer-depth-interpolation.html
+                auto[alpha, beta, gamma] = computeBarycentric2D(x, y, t.v);
+                float z_interpolated = 1.0/(alpha / v[0].z() + beta / v[1].z() + gamma / v[2].z());
+
+
+                int pos = get_index(x, y);
+                if (z_interpolated > depth_buf[pos])    // 向-z看，因此大的深度值才是靠近相机的
+                {
+                    depth_buf[pos] = z_interpolated;
+                    set_pixel(Eigen::Vector3f(x, y, 0), t.getColor());
+                }
             }
         }
     }
@@ -186,17 +235,41 @@ void rst::rasterizer::clear(rst::Buffers buff)
     if ((buff & rst::Buffers::Color) == rst::Buffers::Color)
     {
         std::fill(frame_buf.begin(), frame_buf.end(), Eigen::Vector3f{0, 0, 0});
+        if (enable_ssaa())
+        {
+            for(auto& frame_v : ssaa_frame_buf_)
+            {
+                frame_v.resize(ssaa_size_ * ssaa_size_);
+                std::fill(frame_v.begin(), frame_v.end(), Eigen::Vector3f{0, 0, 0});
+            }
+        }
     }
     if ((buff & rst::Buffers::Depth) == rst::Buffers::Depth)
     {
         std::fill(depth_buf.begin(), depth_buf.end(), -std::numeric_limits<float>::infinity());
+        if (enable_ssaa())
+        {
+            for (auto& depth_v : ssaa_depth_buf_)
+            {
+                depth_v.resize(ssaa_size_ * ssaa_size_);    // 3 * 3的ssaa，每个像素需要扩充为9个点
+                std::fill(depth_v.begin(), depth_v.end(), -std::numeric_limits<float>::infinity());
+            }
+        }
     }
 }
 
-rst::rasterizer::rasterizer(int w, int h) : width(w), height(h)
+rst::rasterizer::rasterizer(int w, int h, int ssaa_size/* = 0 */) : width(w), height(h)
 {
     frame_buf.resize(w * h);
     depth_buf.resize(w * h);
+    ssaa_size_ = ssaa_size;
+
+
+    if (enable_ssaa())
+    {
+        ssaa_depth_buf_.resize(w * h);
+        ssaa_frame_buf_.resize(w * h);
+    }
 }
 
 int rst::rasterizer::get_index(int x, int y)
