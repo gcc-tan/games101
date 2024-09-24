@@ -94,20 +94,22 @@ void rst::rasterizer::draw(pos_buf_id pos_buffer, ind_buf_id ind_buffer, col_buf
         };
         //Homogeneous division
         for (auto& vec : v) {
-            vec /= vec.w();
+            vec.x() = vec.x() / vec.w();
+            vec.y() = vec.y() / vec.w();
+            vec.z() = vec.z() / vec.w();
+            //vec /= vec.w();
         }
         //Viewport transformation
         for (auto & vert : v)
         {
             vert.x() = 0.5*width*(vert.x()+1.0);
             vert.y() = 0.5*height*(vert.y()+1.0);
-            vert.z() = vert.z() * f1 + f2;
+            // vert.z() = vert.z() * f1 + f2;
+            vert.z() = vert.w();
         }
 
         for (int i = 0; i < 3; ++i)
         {
-            t.setVertex(i, v[i].head<3>());
-            t.setVertex(i, v[i].head<3>());
             t.setVertex(i, v[i].head<3>());
         }
 
@@ -136,7 +138,6 @@ void rst::rasterizer::rasterize_triangle(const Triangle& t) {
     int ymin = std::min({v[0].y(), v[1].y(), v[2].y()});
     int ymax = std::max({v[0].y(), v[1].y(), v[2].y()});
 
-
     for (int x = xmin; x <= xmax; ++x)
     {
         for (int y = ymin; y <= ymax; ++y)
@@ -150,13 +151,13 @@ void rst::rasterizer::rasterize_triangle(const Triangle& t) {
             //float w_reciprocal = 1.0/(alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w());
             //float z_interpolated = alpha * v[0].z() / v[0].w() + beta * v[1].z() / v[1].w() + gamma * v[2].z() / v[2].w();
             //z_interpolated *= w_reciprocal;
+            // https://www.scratchapixel.com/lessons/3d-basic-rendering/rasterization-practical-implementation/visibility-problem-depth-buffer-depth-interpolation.html
             auto[alpha, beta, gamma] = computeBarycentric2D(x, y, t.v);
-            float w_reciprocal = 1.0/(alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w());
-            float z_interpolated = alpha * v[0].z() / v[0].w() + beta * v[1].z() / v[1].w() + gamma * v[2].z() / v[2].w();
-            z_interpolated *= w_reciprocal;
+            float z_interpolated = 1.0/(alpha / v[0].z() + beta / v[1].z() + gamma / v[2].z());
+
 
             int pos = get_index(x, y);
-            if (z_interpolated < depth_buf[pos])
+            if (z_interpolated > depth_buf[pos])    // 向-z看，因此大的深度值才是靠近相机的
             {
                 depth_buf[pos] = z_interpolated;
                 set_pixel(Eigen::Vector3f(x, y, 0), t.getColor());
@@ -188,7 +189,7 @@ void rst::rasterizer::clear(rst::Buffers buff)
     }
     if ((buff & rst::Buffers::Depth) == rst::Buffers::Depth)
     {
-        std::fill(depth_buf.begin(), depth_buf.end(), std::numeric_limits<float>::infinity());
+        std::fill(depth_buf.begin(), depth_buf.end(), -std::numeric_limits<float>::infinity());
     }
 }
 
