@@ -47,11 +47,11 @@ static bool insideTriangle(float x, float y, const Vector3f* _v)
     // Implement this function to check if the point (x, y) is inside the triangle represented by _v[0], _v[1], _v[2]
     // 参考https://blog.csdn.net/dracularking/article/details/2217180 或者课件即可
     Eigen::Vector3f m(x, y, 0);
-    Eigen::Vector3f m0 = m - _v[0];
-    Eigen::Vector3f m1 = m - _v[1];
-    Eigen::Vector3f m2 = m - _v[2];
+    Eigen::Vector3f m0 = _v[0] - m;
+    Eigen::Vector3f m1 = _v[1] - m;
+    Eigen::Vector3f m2 = _v[2] - m;
 
-    // 点v0，v1，v2是顺时针排列，只需要保证，按照顺序一圈下来叉乘的结果同号，那就说明在三角形内部
+    // 点v0，v1，v2是逆时针排列，只需要保证，按照顺序一圈下来叉乘的结果同号，那就说明在三角形内部
     // 可以想象一下，m点在三角形内部，那么按照顺时针的顺序的m0，m1，m2叉乘的向量方向肯定是一致的
     float r1 = m0.cross(m1).z();
     float r2 = m1.cross(m2).z();
