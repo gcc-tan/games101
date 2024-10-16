@@ -148,7 +148,7 @@ Eigen::Vector3f phong_fragment_shader(const fragment_shader_payload& payload)
 
     std::vector<light> lights = {l1, l2};
     Eigen::Vector3f amb_light_intensity{10, 10, 10};
-    Eigen::Vector3f eye_pos{0, 0, 10};
+    Eigen::Vector3f eye_pos{0, 0, 10};    // 此处的eye_pos不应该就是相机坐标，那在view space，已经是(0, 0, 0)了？
 
     float p = 150;
 
@@ -161,25 +161,15 @@ Eigen::Vector3f phong_fragment_shader(const fragment_shader_payload& payload)
     Eigen::Vector3f h, l, v;    // 半程向量
     for (auto& light : lights)
     {
-        // TODO: For each light source in the code, calculate what the *ambient*, *diffuse*, and *specular* 
-        // components are. Then, accumulate that result on the *result_color* object.
         v = (eye_pos - point).normalized();
         l = (light.position - point).normalized();
         h = (v + l).normalized();
+        float rr = (point - light.position).squaredNorm();
         // (point - light.position).norm() shading point的欧式距离
-        Ld = kd.cwiseProduct(light.intensity) / pow((point - light.position).norm(), 2) * std::max(0.f, normal.dot(l));
-        Ls = ks.cwiseProduct(light.intensity) / pow((point - light.position).norm(), 2) * std::pow(std::max(0.f, normal.dot(h)), p);
-        // La = ka.cwiseProduct(light.intensity);
+        Ld = kd.cwiseProduct(light.intensity) / rr * std::max(0.f, normal.dot(l));
+        Ls = ks.cwiseProduct(light.intensity) / rr * std::pow(std::max(0.f, normal.dot(h)), p);
+        La = ka.cwiseProduct(amb_light_intensity);
 
-        auto test_func = [](Eigen::Vector3f& vec, const std::string& type) {
-            if (vec.x() >= 1 || vec.y() >= 1 || vec.z() >= 1)
-            {
-                std::cout << "error " << type << " " << vec.transpose() << std::endl;
-            }
-        };
-        // test_func(Ld, "Ld");
-        // test_func(Ls, "Ls");
-        // test_func(La, "La");
         result_color = result_color + Ld + Ls + La;
     }
 
