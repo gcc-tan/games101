@@ -2,6 +2,8 @@
 // Created by goksu on 4/6/19.
 //
 
+#include <Eigen/Dense>
+#include <Eigen/src/Core/Matrix.h>
 #include <algorithm>
 #include "rasterizer.hpp"
 #include <opencv2/opencv.hpp>
@@ -189,6 +191,7 @@ void rst::rasterizer::draw(std::vector<Triangle *> &TriangleList) {
         std::array<Eigen::Vector3f, 3> viewspace_pos;
 
         std::transform(mm.begin(), mm.end(), viewspace_pos.begin(), [](auto& v) {
+            // 使用template关键字 指定调用v的模板函数head
             return v.template head<3>();
         });
 
@@ -204,6 +207,7 @@ void rst::rasterizer::draw(std::vector<Triangle *> &TriangleList) {
             vec.z()/=vec.w();
         }
 
+        // 法线变换矩阵就是mv矩阵的逆，然后再转置
         Eigen::Matrix4f inv_trans = (view * model).inverse().transpose();
         Eigen::Vector4f n[] = {
                 inv_trans * to_vec4(t->normal[0], 0.0f),
@@ -216,7 +220,7 @@ void rst::rasterizer::draw(std::vector<Triangle *> &TriangleList) {
         {
             vert.x() = 0.5*width*(vert.x()+1.0);
             vert.y() = 0.5*height*(vert.y()+1.0);
-            vert.z() = vert.z() * f1 + f2;
+            // vert.z() = vert.z() * f1 + f2;
         }
 
         for (int i = 0; i < 3; ++i)
@@ -259,7 +263,52 @@ static Eigen::Vector2f interpolate(float alpha, float beta, float gamma, const E
 //Screen space rasterization
 void rst::rasterizer::rasterize_triangle(const Triangle& t, const std::array<Eigen::Vector3f, 3>& view_pos) 
 {
-    // TODO: From your HW3, get the triangle rasterization code.
+    auto v = t.toVector4();
+    // 有限根据三角形顶点坐标（屏幕空间），确定包围盒，就是最简单的正方形包围盒
+    int xmin = std::min({v[0].x(), v[1].x(), v[2].x()});
+    int xmax = std::max({v[0].x(), v[1].x(), v[2].x()});
+    int ymin = std::min({v[0].y(), v[1].y(), v[2].y()});
+    int ymax = std::max({v[0].y(), v[1].y(), v[2].y()});
+
+    for (int x = xmin; x <= xmax; ++x)
+    {
+        for (int y = ymin; y <= ymax; ++y)
+        {
+            // 测试屏幕空间的像素点(x, y)是否在三角形内，用中心点也差不多
+            if (!insideTriangle(x, y, t.v))
+            {
+                continue;
+            }
+            auto[alpha, beta, gamma] = computeBarycentric2D(x, y, t.v);
+            // 用view space顶点的z倒数和屏幕空间（x，y）的重心坐标进行插值，计算（x，y）的Z坐标
+            // w分量需要保存顶点view space的z值
+            float Z = 1.0 / (alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w());
+
+            int pos = get_index(x, y);
+            if (Z > depth_buf[pos])
+            {
+                depth_buf[pos] = Z;
+
+                // 插值(x, y)点的颜色
+                // 这里的函数重载也不知道什么问题，第一个参数非得要加上一个包装
+                auto interpolated_color = interpolate(alpha, beta, gamma,Eigen::Vector3f(t.color[0] / v[0].w()), t.color[1] / v[1].w(), t.color[2] / v[2].w(), 1 / Z);
+                // 插值这个像素点的法线
+                auto interpolated_normal = interpolate(alpha, beta, gamma, Eigen::Vector3f(t.normal[0] / v[0].w()), t.normal[1] / v[1].w(), t.normal[2] / v[2].w(), 1 / Z);
+                // 插值纹理坐标
+                auto interpolated_texcoords = interpolate(alpha, beta, gamma, Eigen::Vector2f(t.tex_coords[0] / v[0].w()), t.tex_coords[1] / v[1].w(), t.tex_coords[2] / v[2].w(), 1 / Z);
+
+                // 插值shadingcoords？这个怎么理解着色点？应该是插值view space中（x，y）对应的坐标点？
+                // 这个属性感觉Blinn-Phong里面用于计算点与光源的距离，从而计算(x, y)接收到的能量
+                auto interpolated_shadingcoords = interpolate(alpha, beta, gamma, Eigen::Vector3f(view_pos[0] / v[0].w()), view_pos[1] / v[1].w(), view_pos[2] / v[2].w(), 1 / Z);
+
+                fragment_shader_payload  payload(interpolated_color, interpolated_normal.normalized(), interpolated_texcoords, texture ? &*texture : nullptr);
+                payload.view_pos = interpolated_shadingcoords; 
+                auto pixel_color = fragment_shader(payload);
+
+                set_pixel(Eigen::Vector2i(x, y), pixel_color);
+            }
+        }
+    }
     // TODO: Inside your rasterization loop:
     //    * v[i].w() is the vertex view space depth value z.
     //    * Z is interpolated view space depth for the current pixel
@@ -306,7 +355,7 @@ void rst::rasterizer::clear(rst::Buffers buff)
     }
     if ((buff & rst::Buffers::Depth) == rst::Buffers::Depth)
     {
-        std::fill(depth_buf.begin(), depth_buf.end(), std::numeric_limits<float>::infinity());
+        std::fill(depth_buf.begin(), depth_buf.end(), -std::numeric_limits<float>::infinity());
     }
 }
 

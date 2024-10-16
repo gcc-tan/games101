@@ -12,6 +12,9 @@ using namespace Eigen;
 class Triangle{
 
 public:
+    // 这个逆时针感觉有问题
+    // https://www.inf.ed.ac.uk/teaching/courses/cg/lectures/slides7.pdf
+    // 参考上面重心坐标的计算公式，对比代码里面给出的，v0,v1,v2应该是顺时针排列的
     Vector4f v[3]; /*the original coordinates of the triangle, v0, v1, v2 in counter clockwise order*/
     /*Per vertex values*/
     Vector3f color[3]; //color at each vertex;
