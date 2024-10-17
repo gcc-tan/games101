@@ -3,6 +3,7 @@ project(Rasterizer)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_BUILD_TYPE Debug)
 
 find_package(OpenCV REQUIRED)
 find_package(Eigen3 REQUIRED CONFIG)

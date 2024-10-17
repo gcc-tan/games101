@@ -27,11 +27,13 @@ Eigen::Matrix4f get_model_matrix(float angle)
 {
     Eigen::Matrix4f rotation;
     angle = angle * MY_PI / 180.f;
+    // y轴旋转
     rotation << cos(angle), 0, sin(angle), 0,
                 0, 1, 0, 0,
                 -sin(angle), 0, cos(angle), 0,
                 0, 0, 0, 1;
 
+    // 放大2.5倍
     Eigen::Matrix4f scale;
     scale << 2.5, 0, 0, 0,
               0, 2.5, 0, 0,
@@ -102,7 +104,8 @@ Eigen::Vector3f texture_fragment_shader(const fragment_shader_payload& payload)
     if (payload.texture)
     {
         // TODO: Get the texture value at the texture coordinates of the current fragment
-
+        auto tp = payload.tex_coords;
+        return_color = payload.texture->getColor(tp.x(), tp.y());
     }
     Eigen::Vector3f texture_color;
     texture_color << return_color.x(), return_color.y(), return_color.z();
@@ -125,12 +128,22 @@ Eigen::Vector3f texture_fragment_shader(const fragment_shader_payload& payload)
     Eigen::Vector3f normal = payload.normal;
 
     Eigen::Vector3f result_color = {0, 0, 0};
-
+    Eigen::Vector3f Ld, Ls, La;
+    Eigen::Vector3f h, l, v;
     for (auto& light : lights)
     {
         // TODO: For each light source in the code, calculate what the *ambient*, *diffuse*, and *specular* 
         // components are. Then, accumulate that result on the *result_color* object.
+        v = (eye_pos - point).normalized();
+        l = (light.position - point).normalized();
+        h = (v + l).normalized();
 
+        float rr = (light.position - point).squaredNorm();    // shading point和光源距离的平方
+        Ld = kd.cwiseProduct(light.intensity) / rr * std::max(0.f, normal.dot(l));
+        Ls = ks.cwiseProduct(light.intensity) / rr * std::pow(std::max(0.f, normal.dot(h)), p);
+        La = ka.cwiseProduct(amb_light_intensity);
+
+        result_color = result_color + Ld + Ls + La;
     }
 
     return result_color * 255.f;
@@ -296,10 +309,10 @@ int main(int argc, const char** argv)
 
     rst::rasterizer r(700, 700);
 
-    auto texture_path = "hmap.jpg";
+    auto texture_path = "spot_texture.png";
     r.set_texture(Texture(obj_path + texture_path));
 
-    std::function<Eigen::Vector3f(fragment_shader_payload)> active_shader = phong_fragment_shader;
+    std::function<Eigen::Vector3f(fragment_shader_payload)> active_shader = texture_fragment_shader;
 
     if (argc >= 2)
     {
