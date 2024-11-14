@@ -190,7 +190,11 @@ Eigen::Vector3f phong_fragment_shader(const fragment_shader_payload& payload)
 }
 
 
-
+// displacement mapping是位移贴图，bump mapping是凹凸贴图。虽然两者都是利用同样的高度图计算法线
+// 但是凹凸贴图只是改变了法线从而改变光照结果，不改变真实的顶点位置（这样可能导致边缘，阴影，和凹凸部分间遮挡的着色可能不正确）
+// 而displacement mapping是改变法线的同时改变了顶点位置，这样很减少或者避免上面括号中的问题
+// normal mapping和bump mapping 的区别呢？
+// 个人认为只是从贴图中获取法线的方式不一样，normal mapping是从贴图中利用颜色做个线性变换就能获取，bump mapping还需要算差分，算切线。最后利用法线做的操作一样。
 Eigen::Vector3f displacement_fragment_shader(const fragment_shader_payload& payload)
 {
     
@@ -212,8 +216,6 @@ Eigen::Vector3f displacement_fragment_shader(const fragment_shader_payload& payl
     Eigen::Vector3f normal = payload.normal;
 
     float kh = 0.2, kn = 0.1;
-    
-    // TODO: Implement displacement mapping here
     // Let n = normal = (x, y, z)
     // Vector t = (x*y/sqrt(x*x+z*z),sqrt(x*x+z*z),z*y/sqrt(x*x+z*z))
     // Vector b = n cross product t
@@ -224,15 +226,48 @@ Eigen::Vector3f displacement_fragment_shader(const fragment_shader_payload& payl
     // Position p = p + kn * n * h(u,v)
     // Normal n = normalize(TBN * ln)
 
+    // 计算tbn矩阵
+    float x = payload.normal.x();
+    float y = payload.normal.y();
+    float z = payload.normal.z();
+    float proj_xz_len = sqrt(x*x + z*z);
+    Eigen::Vector3f t(- y * x / proj_xz_len, proj_xz_len, -y * z / proj_xz_len); 
+    Eigen::Vector3f b = payload.normal.cross(t);
+    Eigen::Matrix3f tbn;
+    tbn << t, b, payload.normal;
+
+    float u = payload.tex_coords.x();
+    float v = payload.tex_coords.y();
+    float w = payload.texture->width;
+    float h = payload.texture->height;
+    float h_uv = payload.texture->getColor(u, v).norm();    
+    float dU = kh * kn * (payload.texture->getColor(u + 1 / w, v).norm() - h_uv);    
+    float dV = kh * kn * (payload.texture->getColor(u, v + 1 / h).norm() - h_uv);
+    Eigen::Vector3f ln(-dU, -dV, 1);
+
+    point = point + kn * normal * h_uv;    // 看起来就是着色点沿着旧法线移动纹理贴图中
+    Eigen::Vector3f n = (tbn * ln).normalized();
+
+    
+
 
     Eigen::Vector3f result_color = {0, 0, 0};
-
+    Eigen::Vector3f Ld, Ls, La;    // 漫反射光，高光，环境光
+    Eigen::Vector3f h_vec, l_vec, v_vec;    // 半程向量
     for (auto& light : lights)
     {
         // TODO: For each light source in the code, calculate what the *ambient*, *diffuse*, and *specular* 
         // components are. Then, accumulate that result on the *result_color* object.
+        v_vec = (eye_pos - point).normalized();
+        l_vec = (light.position - point).normalized();
+        h_vec = (v_vec + l_vec).normalized();
+        float rr = (point - light.position).squaredNorm();
+        // (point - light.position).norm() shading point的欧式距离
+        Ld = kd.cwiseProduct(light.intensity) / rr * std::max(0.f, n.dot(l_vec));
+        Ls = ks.cwiseProduct(light.intensity) / rr * std::pow(std::max(0.f, n.dot(h_vec)), p);
+        La = ka.cwiseProduct(amb_light_intensity);
 
-
+        result_color = result_color + Ld + Ls + La;
     }
 
     return result_color * 255.f;
@@ -257,7 +292,6 @@ Eigen::Vector3f bump_fragment_shader(const fragment_shader_payload& payload)
 
     float kh = 0.2, kn = 0.1;
 
-    // TODO: Implement bump mapping here
     // Let n = normal = (x, y, z)
     // Vector t = (x*y/sqrt(x*x+z*z),sqrt(x*x+z*z),z*y/sqrt(x*x+z*z))
     // Vector b = n cross product t
@@ -283,9 +317,11 @@ Eigen::Vector3f bump_fragment_shader(const fragment_shader_payload& payload)
     float v = payload.tex_coords.y();
     float w = payload.texture->width;
     float h = payload.texture->height;
-    float uv_color = payload.texture->getColor(u, v).norm();    // 好像是论坛助教解答问题说的:color的模表示h(u, v)即(u, v)这点的高度值
-    float dU = kh * kn * (payload.texture->getColor(u + 1 / w, v).norm() - uv_color);    // 因为u是已经/w的值，因此用差分移动一个单位是1/w
-    float dV = kh * kn * (payload.texture->getColor(u, v + 1 / h).norm() - uv_color);
+    // 好像是论坛助教解答问题说的:color的模表示h(u, v)即(u, v)这点的高度值
+    // https://games-cn.org/forums/topic/%E4%BD%9C%E4%B8%9A3%E6%9B%B4%E6%AD%A3%E5%85%AC%E5%91%8A/
+    float h_uv = payload.texture->getColor(u, v).norm();    
+    float dU = kh * kn * (payload.texture->getColor(u + 1 / w, v).norm() - h_uv);    // 因为u是已经/w的值，因此用差分移动一个单位是1/w
+    float dV = kh * kn * (payload.texture->getColor(u, v + 1 / h).norm() - h_uv);
     Eigen::Vector3f ln(-dU, -dV, 1);
     Eigen::Vector3f n = (tbn * ln).normalized();
 
@@ -359,7 +395,7 @@ int main(int argc, const char** argv)
         }
         else if (argc == 3 && std::string(argv[2]) == "displacement")
         {
-            std::cout << "Rasterizing using the bump shader\n";
+            std::cout << "Rasterizing using the displacement shader\n";
             active_shader = displacement_fragment_shader;
         }
     }
