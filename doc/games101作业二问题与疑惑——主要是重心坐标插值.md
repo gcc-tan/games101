@@ -58,7 +58,11 @@ p1-p0可以理解为p0p1向量，同理p2-p0可以理解为p0p2向量，那么�
 
 而正确的做法应该是深度倒数插值：
 
-![](C:\Users\my_mf\AppData\Roaming\Typora\typora-user-images\image-20240923181126843.png)
+![](img/interpolating _inverses.JPG)
+
+推广到任意属性，就像——参考6《GAMES101》作业框架问题详解：
+
+<img src="img/any_attribute_interpolate.JPG" style="zoom:67%;" />
 
 
 
@@ -171,10 +175,11 @@ float z_interpolated = 1.0/(alpha / v[0].z() + beta / v[1].z() + gamma / v[2].z(
 
 内容参考（内容来自）：
 
-1. https://blog.csdn.net/Motarookie/article/details/124284471
+1. [【重心坐标插值、透视矫正插值】原理以及用法见解(GAMES101深度测试部分讨论)](https://blog.csdn.net/Motarookie/article/details/124284471)
 
-2. https://www.inf.ed.ac.uk/teaching/courses/cg/lectures/slides7.pdf
-3. https://www.scratchapixel.com/lessons/3d-basic-rendering/rasterization-practical-implementation/visibility-problem-depth-buffer-depth-interpolation.html
-4. https://juejin.cn/post/7085176703085412383
-5. https://www.zhihu.com/question/20236638
+2. [Computer Graphics 7 - Rasterisation](https://www.inf.ed.ac.uk/teaching/courses/cg/lectures/slides7.pdf)
+3. [Rasterization](https://www.scratchapixel.com/lessons/3d-basic-rendering/rasterization-practical-implementation/visibility-problem-depth-buffer-depth-interpolation.html)
+4. [GAMES101投影矩阵推导详解和分析](https://juejin.cn/post/7085176703085412383)
+5. [请问FXAA、FSAA与MSAA有什么区别？效果和性能上哪个好](https://www.zhihu.com/question/20236638)
+6. [《GAMES101》作业框架问题详解](https://zhuanlan.zhihu.com/p/509902950)
 
