@@ -255,11 +255,6 @@ Eigen::Vector3f bump_fragment_shader(const fragment_shader_payload& payload)
 
     float p = 150;
 
-    Eigen::Vector3f color = payload.color; 
-    Eigen::Vector3f point = payload.view_pos;
-    Eigen::Vector3f normal = payload.normal;
-
-
     float kh = 0.2, kn = 0.1;
 
     // TODO: Implement bump mapping here
@@ -267,14 +262,35 @@ Eigen::Vector3f bump_fragment_shader(const fragment_shader_payload& payload)
     // Vector t = (x*y/sqrt(x*x+z*z),sqrt(x*x+z*z),z*y/sqrt(x*x+z*z))
     // Vector b = n cross product t
     // Matrix TBN = [t b n]
-    // dU = kh * kn * (h(u+1/w,v)-h(u,v))
-    // dV = kh * kn * (h(u,v+1/h)-h(u,v))
-    // Vector ln = (-dU, -dV, 1)
-    // Normal n = normalize(TBN * ln)
+    // https://games-cn.org/forums/topic/zuoye3-bump-mappingzhongtbndet-gongshizenmetuidaode/
 
+    // 计算tbn矩阵
+    float x = payload.normal.x();
+    float y = payload.normal.y();
+    float z = payload.normal.z();
+    float proj_xz_len = sqrt(x*x + z*z);
+    Eigen::Vector3f t(- y * x / proj_xz_len, proj_xz_len, -y * z / proj_xz_len);    // 为什么这么算在《games101作业三问题与疑惑中介绍》
+    Eigen::Vector3f b = payload.normal.cross(t);    // 注意顺序 n x t
+    Eigen::Matrix3f tbn;
+    /* 这个初始化相当于
+    tbn << t.x(), b.x(), payload.normal.x(),
+           t.y(), b.y(), payload.normal.y(),
+           t.z(), b.z(), payload.normal.z()
+    */
+    tbn << t, b, payload.normal;
+
+    float u = payload.tex_coords.x();
+    float v = payload.tex_coords.y();
+    float w = payload.texture->width;
+    float h = payload.texture->height;
+    float uv_color = payload.texture->getColor(u, v).norm();    // 好像是论坛助教解答问题说的:color的模表示h(u, v)即(u, v)这点的高度值
+    float dU = kh * kn * (payload.texture->getColor(u + 1 / w, v).norm() - uv_color);    // 因为u是已经/w的值，因此用差分移动一个单位是1/w
+    float dV = kh * kn * (payload.texture->getColor(u, v + 1 / h).norm() - uv_color);
+    Eigen::Vector3f ln(-dU, -dV, 1);
+    Eigen::Vector3f n = (tbn * ln).normalized();
 
     Eigen::Vector3f result_color = {0, 0, 0};
-    result_color = normal;
+    result_color = n;
 
     return result_color * 255.f;
 }
@@ -309,7 +325,7 @@ int main(int argc, const char** argv)
 
     rst::rasterizer r(700, 700);
 
-    auto texture_path = "spot_texture.png";
+    auto texture_path = "hmap.jpg";    // 之前做纹理映射的是后忘记改了，导致做这个凹凸贴图的时候结果很有意思，过于光滑，可以试试
     r.set_texture(Texture(obj_path + texture_path));
 
     std::function<Eigen::Vector3f(fragment_shader_payload)> active_shader = texture_fragment_shader;
