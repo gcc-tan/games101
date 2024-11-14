@@ -279,7 +279,8 @@ void rst::rasterizer::rasterize_triangle(const Triangle& t, const std::array<Eig
             {
                 continue;
             }
-            auto[alpha, beta, gamma] = computeBarycentric2D(x, y, t.v);
+            float alpha, beta, gamma;
+            std::tie(alpha, beta, gamma) = computeBarycentric2D(x, y, t.v);
             // 用view space顶点的z倒数和屏幕空间（x，y）的重心坐标进行插值，计算（x，y）的Z坐标
             // w分量需要保存顶点view space的z值
             float Z = 1.0 / (alpha / v[0].w() + beta / v[1].w() + gamma / v[2].w());
@@ -289,17 +290,60 @@ void rst::rasterizer::rasterize_triangle(const Triangle& t, const std::array<Eig
             {
                 depth_buf[pos] = Z;
 
+                auto interpolate_vec3f = [alpha, beta, gamma, Z](
+                                             Eigen::Vector3f attr1, float z1,
+                                             Eigen::Vector3f attr2, float z2,
+                                             Eigen::Vector3f attr3, float z3) 
+                                             -> Eigen::Vector3f {
+                    Eigen::Vector3f result;
+                    result = (alpha * attr1 / z1 + beta * attr2 / z2 + gamma * attr3 / z3) * Z; 
+
+                    // 插值计算的不一定在正确范围，否则容易core（在main函数里面将旋转改为每次循环+10度，很容易能core的）
+                    if (!std::isfinite(result.x()))
+                    {
+                        result.x() = 0;
+                    }
+                    if (!std::isfinite(result.y()))
+                    {
+                        result.y() = 0;
+                    }
+                    if (!std::isfinite(result.z()))
+                    {
+                        result.z() = 0;
+                    }
+                    return result;
+                };
+
+                auto interpolate_vec2f = [alpha, beta, gamma, Z](
+                                             Eigen::Vector2f attr1, float z1,
+                                             Eigen::Vector2f attr2, float z2,
+                                             Eigen::Vector2f attr3, float z3) 
+                                             -> Eigen::Vector2f {
+                    Eigen::Vector2f result;
+                    result = (alpha * attr1 / z1 + beta * attr2 / z2 + gamma * attr3 / z3) * Z; 
+
+                    // 插值计算的不一定在正确范围，否则容易core
+                    if (!std::isfinite(result.x()))
+                    {
+                        result.x() = 0;
+                    }
+                    if (!std::isfinite(result.y()))
+                    {
+                        result.y() = 0;
+                    }
+                    return result;
+                };
                 // 插值(x, y)点的颜色
                 // 这里的函数重载也不知道什么问题，第一个参数非得要加上一个包装
-                auto interpolated_color = interpolate(alpha, beta, gamma,Eigen::Vector3f(t.color[0] / v[0].w()), t.color[1] / v[1].w(), t.color[2] / v[2].w(), 1 / Z);
+                auto interpolated_color = interpolate_vec3f(t.color[0], v[0].w(), t.color[1], v[1].w(), t.color[2], v[2].w());
                 // 插值这个像素点的法线
-                auto interpolated_normal = interpolate(alpha, beta, gamma, Eigen::Vector3f(t.normal[0] / v[0].w()), t.normal[1] / v[1].w(), t.normal[2] / v[2].w(), 1 / Z);
+                auto interpolated_normal = interpolate_vec3f(t.normal[0], v[0].w(), t.normal[1], v[1].w(), t.normal[2], v[2].w());
                 // 插值纹理坐标
-                auto interpolated_texcoords = interpolate(alpha, beta, gamma, Eigen::Vector2f(t.tex_coords[0] / v[0].w()), t.tex_coords[1] / v[1].w(), t.tex_coords[2] / v[2].w(), 1 / Z);
+                auto interpolated_texcoords = interpolate_vec2f(t.tex_coords[0], v[0].w(), t.tex_coords[1], v[1].w(), t.tex_coords[2], v[2].w());
 
                 // 插值shadingcoords？这个怎么理解着色点？应该是插值view space中（x，y）对应的坐标点？
                 // 这个属性感觉Blinn-Phong里面用于计算点与光源的距离，从而计算(x, y)接收到的能量
-                auto interpolated_shadingcoords = interpolate(alpha, beta, gamma, Eigen::Vector3f(view_pos[0] / v[0].w()), view_pos[1] / v[1].w(), view_pos[2] / v[2].w(), 1 / Z);
+                auto interpolated_shadingcoords = interpolate_vec3f(view_pos[0], v[0].w(), view_pos[1], v[1].w(), view_pos[2], v[2].w());
 
                 fragment_shader_payload  payload(interpolated_color, interpolated_normal.normalized(), interpolated_texcoords, texture ? &*texture : nullptr);
                 payload.view_pos = interpolated_shadingcoords; 
