@@ -441,15 +441,15 @@ int main(int argc, const char** argv)
 
         cv::imshow("image", image);
         cv::imwrite(filename, image);
-        key = cv::waitKey(10);
+        key = cv::waitKey(10000);    // 这个等待时间要更长一点，如果不在这个时间内按下，那会返回-1，导致模型旋转不了
 
         if (key == 'a' )
         {
-            angle -= 0.1;
+            angle -= 10;
         }
         else if (key == 'd')
         {
-            angle += 0.1;
+            angle += 10;
         }
 
     }
