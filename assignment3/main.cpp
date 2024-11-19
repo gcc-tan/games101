@@ -371,12 +371,12 @@ int main(int argc, const char** argv)
         command_line = true;
         filename = std::string(argv[1]);
 
-        if (argc == 3 && std::string(argv[2]) == "texture")
+        if (argc >= 3 && std::string(argv[2]) == "texture")
         {
             std::cout << "Rasterizing using the texture shader\n";
             active_shader = texture_fragment_shader;
             texture_path = "spot_texture.png";
-            r.set_texture(Texture(obj_path + texture_path));
+            r.set_texture(Texture(obj_path + texture_path, argc > 3));
         }
         else if (argc == 3 && std::string(argv[2]) == "normal")
         {
