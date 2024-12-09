@@ -84,11 +84,11 @@ std::optional<hit_payload> trace(
         const Vector3f &orig, const Vector3f &dir,
         const std::vector<std::unique_ptr<Object> > &objects)
 {
-    float tNear = kInfinity;
+    float tNear = kInfinity;    // 当前光线与所有相交物体的最小值
     std::optional<hit_payload> payload;
     for (const auto & object : objects)
     {
-        float tNearK = kInfinity;
+        float tNearK = kInfinity;    // 相交物体的当前值
         uint32_t indexK;
         Vector2f uvK;
         if (object->intersect(orig, dir, tNearK, indexK, uvK) && tNearK < tNear)
@@ -213,7 +213,10 @@ void Renderer::Render(const Scene& scene)
     std::vector<Vector3f> framebuffer(scene.width * scene.height);
 
     float scale = std::tan(deg2rad(scene.fov * 0.5f));
-    float imageAspectRatio = scene.width / (float)scene.height;
+    float imageAspectRatio = scene.width / (float)scene.height;    // 成像平面的宽高比
+    float zNear = 1;    // 近平面距离，也就是成像平面
+    float w = imageAspectRatio * 2 * zNear * scale;    // c成像平面的实际大小宽高，计算可以参考我的作业五的问题与疑惑
+    float h = 2 * zNear * scale;
 
     // Use this variable as the eye position to start your rays.
     Vector3f eye_pos(0);
@@ -223,20 +226,35 @@ void Renderer::Render(const Scene& scene)
         for (int i = 0; i < scene.width; ++i)
         {
             // generate primary ray direction
-            float x;
-            float y;
-            // TODO: Find the x and y positions of the current pixel to get the direction
+            float x = ((float)i) / scene.width * w - w / 2;
+            float y = ((float)j) / scene.height * h + h / 2;
+            // Find the x and y positions of the current pixel to get the direction
             // vector that passes through it.
             // Also, don't forget to multiply both of them with the variable *scale*, and
             // x (horizontal) variable with the *imageAspectRatio*            
 
-            Vector3f dir = Vector3f(x, y, -1); // Don't forget to normalize this direction!
+            // Vector3f dir = Vector3f(x, y, -1); // Don't forget to normalize this direction!
+            // 原来的这个-1的代码，有点不是那么直观，想了一会才看明白
+            // 这个dir向量是相机连向成像平面上像素点的，因此这个向量的z坐标就是zNear，加上符号即可，因为向z负半方向看
+            Vector3f dir = Vector3f(x, y, -zNear); 
+            dir = normalize(dir);
             framebuffer[m++] = castRay(eye_pos, dir, scene, 0);
         }
         UpdateProgress(j / (float)scene.height);
     }
 
     // save framebuffer to file
+    // 还在好奇cmake里面居然没有用opencv，那结果怎么展示
+    // 原来是用的ppm文件，之前没见过，网上搜了一下，文件格式比较简答
+    /*
+        文件头由3行文本组成，可由fgets读出
+        1）第一行为“P6"，表示文件类型
+        2）第二行为图像的宽度和高度
+        3）第三行为最大的象素值
+        接下来是图像数据块。按行顺序存储。每个象素占3个字节，依次为红绿蓝通道，每个通道为1字节整
+        数。左上角为坐标原点。
+    */
+    // https://blog.csdn.net/zhanshen112/article/details/124023982
     FILE* fp = fopen("binary.ppm", "wb");
     (void)fprintf(fp, "P6\n%d %d\n255\n", scene.width, scene.height);
     for (auto i = 0; i < scene.height * scene.width; ++i) {

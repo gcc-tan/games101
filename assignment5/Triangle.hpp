@@ -1,16 +1,36 @@
 #pragma once
 
 #include "Object.hpp"
-
+#include <memory>
 #include <cstring>
 
 bool rayTriangleIntersect(const Vector3f& v0, const Vector3f& v1, const Vector3f& v2, const Vector3f& orig,
                           const Vector3f& dir, float& tnear, float& u, float& v)
 {
-    // TODO: Implement this function that tests whether the triangle
+    // Implement this function that tests whether the triangle
     // that's specified bt v0, v1 and v2 intersects with the ray (whose
     // origin is *orig* and direction is *dir*)
     // Also don't forget to update tnear, u and v.
+    // Moller Trumbore算法，根据ppt翻译一下
+    Vector3f e1 = v1 - v0;
+    Vector3f e2 = v2 - v0;
+    Vector3f s = orig - v0;
+    Vector3f s1 = crossProduct(dir, e2);
+    Vector3f s2 = crossProduct(s, e1);
+    float const_val = 1 / dotProduct(s1, e1);
+    float t = const_val * dotProduct(s2, e2);
+    float b1 = const_val * dotProduct(s1, s);
+    float b2 = const_val * dotProduct(s2, dir);
+
+    // 光线与与三角形相交的条件，时间为正，且三个中心坐标的系数为正
+    // std::cout << t << "," << b1 << "," << b2 << std::endl;
+    if (t > 0 && (1 - b1 - b2) > 0 && b1 > 0 && b2 > 0)
+    {
+        tnear = t;
+        u = b1;
+        v = b2;
+        return true;
+    }
     return false;
 }
 
