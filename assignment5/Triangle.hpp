@@ -88,13 +88,17 @@ public:
         const Vector2f& st0 = stCoordinates[vertexIndex[index * 3]];
         const Vector2f& st1 = stCoordinates[vertexIndex[index * 3 + 1]];
         const Vector2f& st2 = stCoordinates[vertexIndex[index * 3 + 2]];
-        st = st0 * (1 - uv.x - uv.y) + st1 * uv.x + st2 * uv.y;
+        // 这个输入参数的uv应该是rayTriangleIntersect的b1，b2，三角形重心坐标中的两个
+        // 利用重心坐标，和三个顶点的st（纹理坐标），进行目标点的纹理坐标插值
+        st = st0 * (1 - uv.x - uv.y) + st1 * uv.x + st2 * uv.y;    
     }
 
     Vector3f evalDiffuseColor(const Vector2f& st) const override
     {
         float scale = 5;
         float pattern = (fmodf(st.x * scale, 1) > 0.5) ^ (fmodf(st.y * scale, 1) > 0.5);
+        // 这个pattern中间是^，那么pattern的值要么是0，要么是1，因此这个lerp，感觉很有迷惑性
+        // 代码生成的纹理也是魔性，很有意思
         return lerp(Vector3f(0.815, 0.235, 0.031), Vector3f(0.937, 0.937, 0.231), pattern);
     }
 

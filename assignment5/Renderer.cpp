@@ -8,6 +8,7 @@ inline float deg2rad(const float &deg)
 { return deg * M_PI/180.0; }
 
 // Compute reflection direction
+// 参考这篇文章，或者我的作业五问题分析 https://zhuanlan.zhihu.com/p/91129191
 Vector3f reflect(const Vector3f &I, const Vector3f &N)
 {
     return I - 2 * dotProduct(I, N) * N;
@@ -29,8 +30,10 @@ Vector3f reflect(const Vector3f &I, const Vector3f &N)
 Vector3f refract(const Vector3f &I, const Vector3f &N, const float &ior)
 {
     float cosi = clamp(-1, 1, dotProduct(I, N));
-    float etai = 1, etat = ior;
+    float etai = 1, etat = ior;    // etai = 1,真空中的折射率
     Vector3f n = N;
+    // 法线方向是物体表面，但是光线可能从类似玻璃球之类的物体里面穿出，因此这里利用i与n的点乘正负来判断
+    // 点乘如果是正的，就是上面说的场景
     if (cosi < 0) { cosi = -cosi; } else { std::swap(etai, etat); n= -N; }
     float eta = etai / etat;
     float k = 1 - eta * eta * (1 - cosi * cosi);
@@ -50,18 +53,22 @@ float fresnel(const Vector3f &I, const Vector3f &N, const float &ior)
 {
     float cosi = clamp(-1, 1, dotProduct(I, N));
     float etai = 1, etat = ior;
-    if (cosi > 0) {  std::swap(etai, etat); }
+    // 修改了一下原来的代码和refract保持一致
+    if (cosi < 0) { cosi = - cosi; } else {  std::swap(etai, etat); }
     // Compute sini using Snell's law
     float sint = etai / etat * sqrtf(std::max(0.f, 1 - cosi * cosi));
     // Total internal reflection
-    if (sint >= 1) {
+    // 根据斯涅尔定律和全反射发生的条件就能想明白了
+    // 没用refract里面的k应该是算了没必要，而sint的计算恰好能用来计算cost
+    // 这个地方还是写的不错的
+    if (sint >= 1) {    
         return 1;
     }
     else {
         float cost = sqrtf(std::max(0.f, 1 - sint * sint));
-        cosi = fabsf(cosi);
-        float Rs = ((etat * cosi) - (etai * cost)) / ((etat * cosi) + (etai * cost));
-        float Rp = ((etai * cosi) - (etat * cost)) / ((etai * cosi) + (etat * cost));
+        // 原来的框架代码菲涅尔方程的rs和rp写反了，不过不影响结果，我修正一下
+        float Rp = ((etat * cosi) - (etai * cost)) / ((etat * cosi) + (etai * cost));
+        float Rs = ((etai * cosi) - (etat * cost)) / ((etai * cosi) + (etat * cost));
         return (Rs * Rs + Rp * Rp) / 2;
     }
     // As a consequence of the conservation of energy, transmittance is given by:
@@ -149,6 +156,7 @@ Vector3f castRay(
                                              hitPoint + N * scene.epsilon;
                 Vector3f reflectionColor = castRay(reflectionRayOrig, reflectionDirection, scene, depth + 1);
                 Vector3f refractionColor = castRay(refractionRayOrig, refractionDirection, scene, depth + 1);
+                // 在又有反射又有折射的情况hit_obj的颜色是两者的和，比例就是用菲涅尔方程算出来的
                 float kr = fresnel(dir, N, payload->hit_obj->ior);
                 hitColor = reflectionColor * kr + refractionColor * (1 - kr);
                 break;
@@ -156,10 +164,16 @@ Vector3f castRay(
             case REFLECTION:
             {
                 float kr = fresnel(dir, N, payload->hit_obj->ior);
-                Vector3f reflectionDirection = reflect(dir, N);
+                // 公式算出来的就是单位向量，不做标准化也没问题，问题是可能有精度误差，还有就是前面的做后面的，这显得比较诡异
+                Vector3f reflectionDirection = reflect(dir, N);    
+                // 下面这个epsilon的加减也调整了一下，应该是有问题的，这样调整之后和REFLECTION_AND_REFRACTIONd的也保持一致
+                // 加减是因为浮点运算有精度误差
+                // 反射的加减是为了保证反射后光线的起点和入射光线在相同的介质中
+                // 折射就是为了保证在不同的介质中
+                // 从而保证光线计算的正确性
                 Vector3f reflectionRayOrig = (dotProduct(reflectionDirection, N) < 0) ?
-                                             hitPoint + N * scene.epsilon :
-                                             hitPoint - N * scene.epsilon;
+                                             hitPoint - N * scene.epsilon :
+                                             hitPoint + N * scene.epsilon;
                 hitColor = castRay(reflectionRayOrig, reflectionDirection, scene, depth + 1) * kr;
                 break;
             }
@@ -170,6 +184,10 @@ Vector3f castRay(
                 // is composed of a diffuse and a specular reflection component.
                 // [/comment]
                 Vector3f lightAmt = 0, specularColor = 0;
+                // 这个判断还是有点意思，dotProduct(dir, N)，仔细想想就知道目前的代码，在这个default判断中不可能有点乘 > 0的情况
+                // 因为感知光线dir和表面法线N点乘大于零表示从物体内部射出，那既然要从内部射出，那感知光线进入的时候物体类型必然是REFLECTION_AND_REFRACTION
+                // 因此是那就进入不了这个Phong光照模型的计算，需要再进行castRay的递归
+                // 额除非这个物体，一部分是REFLECTION_AND_REFRACTION，一部分是DIFFUSE_AND_GLOSSY，玻璃球套一半塑料？
                 Vector3f shadowPointOrig = (dotProduct(dir, N) < 0) ?
                                            hitPoint + N * scene.epsilon :
                                            hitPoint - N * scene.epsilon;
@@ -185,11 +203,16 @@ Vector3f castRay(
                     float LdotN = std::max(0.f, dotProduct(lightDir, N));
                     // is the point in shadow, and is the nearest occluding object closer to the object than the light itself?
                     auto shadow_res = trace(shadowPointOrig, lightDir, scene.get_objects());
+                    // 感觉inShadow的判断shadow_res.has_value，从hitPoint到光源的的shadow ray有物体遮挡就可以了? 这个时间t和距离判断也是要理解一会
+                    // 不过也没毛病，o + td，t就相当于距离，因为d是单位向量
                     bool inShadow = shadow_res && (shadow_res->tNear * shadow_res->tNear < lightDistance2);
 
+                    // 使用的是Phong光照模型，而不是Blinn-Phong   https://blog.wallenwang.com/2017/03/phong-lighting-model/
+                    // lightAmt这个名字有点诡异，明明属于漫反射项，而且没有考虑hitPoint和光源的距离？
                     lightAmt += inShadow ? 0 : light->intensity * LdotN;
                     Vector3f reflectionDirection = reflect(-lightDir, N);
 
+                    // 高光不用判断遮挡？
                     specularColor += powf(std::max(0.f, -dotProduct(reflectionDirection, dir)),
                         payload->hit_obj->specularExponent) * light->intensity;
                 }
@@ -227,7 +250,7 @@ void Renderer::Render(const Scene& scene)
         {
             // generate primary ray direction
             float x = ((float)i) / scene.width * w - w / 2;
-            float y = ((float)j) / scene.height * h + h / 2;
+            float y = (-(float)j) / scene.height * h + h / 2;
             // Find the x and y positions of the current pixel to get the direction
             // vector that passes through it.
             // Also, don't forget to multiply both of them with the variable *scale*, and
@@ -240,7 +263,7 @@ void Renderer::Render(const Scene& scene)
             dir = normalize(dir);
             framebuffer[m++] = castRay(eye_pos, dir, scene, 0);
         }
-        UpdateProgress(j / (float)scene.height);
+        UpdateProgress((j + 1) / (float)scene.height);    // 这个代码不改我难受
     }
 
     // save framebuffer to file

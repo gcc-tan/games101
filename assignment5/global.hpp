@@ -62,6 +62,14 @@ inline void UpdateProgress(float progress)
         else
             std::cout << " ";
     }
-    std::cout << "] " << int(progress * 100.0) << " %\r";
+    if (progress + 0.00001 < 1.0f)     // 0.00001防止一个浮点计算的精度误差
+    {
+        std::cout << "] " << int(progress * 100.0) << " %\r";
+    }
+    else 
+    {
+        std::cout << "] " << "100 %" << std::endl;
+    }
+
     std::cout.flush();
 }
