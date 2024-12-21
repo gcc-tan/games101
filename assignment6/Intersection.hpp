@@ -20,9 +20,9 @@ struct Intersection
         m=nullptr;
     }
     bool happened;
-    Vector3f coords;
-    Vector3f normal;
-    double distance;
+    Vector3f coords;   // 光线与物体交点坐标
+    Vector3f normal;   // 光线与物体交点的法线，击中的物体是三角形，就用面法线
+    double distance;   // 光线起点到交点距离
     Object* obj;
     Material* m;
 };

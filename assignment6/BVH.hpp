@@ -47,7 +47,7 @@ public:
 };
 
 struct BVHBuildNode {
-    Bounds3 bounds;
+    Bounds3 bounds;    // 节点表示的包围盒范围
     BVHBuildNode *left;
     BVHBuildNode *right;
     Object* object;

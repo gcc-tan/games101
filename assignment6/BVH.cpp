@@ -50,9 +50,10 @@ BVHBuildNode* BVHAccel::recursiveBuild(std::vector<Object*> objects)
     }
     else {
         Bounds3 centroidBounds;
-        for (int i = 0; i < objects.size(); ++i)
-            centroidBounds =
-                Union(centroidBounds, objects[i]->getBounds().Centroid());
+        // 利用物体包围盒的几何中心坐标（Centroid）计算这些中心点的包围盒
+        for (int i = 0; i < (int)objects.size(); ++i)
+            centroidBounds = Union(centroidBounds, objects[i]->getBounds().Centroid());
+        // 利用上面计算包围盒的对角线，然后分别投影到x，y，z上，看哪个分量最长，就按照哪个分量划分
         int dim = centroidBounds.maxExtent();
         switch (dim) {
         case 0:
@@ -105,5 +106,28 @@ Intersection BVHAccel::Intersect(const Ray& ray) const
 Intersection BVHAccel::getIntersection(BVHBuildNode* node, const Ray& ray) const
 {
     // TODO Traverse the BVH to find intersection
+    if (node == nullptr)
+    {
+        return {};
+    }
+    bool flag = node->bounds.IntersectP(ray, ray.direction_inv, {});
+    std::cout << "log here:" << flag << std::endl;
+    // 与整个包围盒没有交点
+    if (!flag)
+    {
+        return {};
+    }
 
+    if (node->object)   // 叶子节点
+    {
+        return node->object->getIntersection(ray);    // todo这里很奇怪，光线为啥不用引用
+    }
+
+    Intersection inter_left;
+    inter_left = getIntersection(node->left, ray);
+
+    Intersection inter_right;
+    inter_right = getIntersection(node->right, ray);
+
+    return inter_left.distance < inter_right.distance ? inter_left : inter_right;
 }

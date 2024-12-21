@@ -210,18 +210,19 @@ inline Bounds3 Triangle::getBounds() { return Union(Bounds3(v0, v1), v2); }
 
 inline Intersection Triangle::getIntersection(Ray ray)
 {
+    // Moller Trumbore找光线和三角形交点
     Intersection inter;
 
     if (dotProduct(ray.direction, normal) > 0)
         return inter;
     double u, v, t_tmp = 0;
-    Vector3f pvec = crossProduct(ray.direction, e2);
+    Vector3f pvec = crossProduct(ray.direction, e2);    // s1
     double det = dotProduct(e1, pvec);
     if (fabs(det) < EPSILON)
         return inter;
 
     double det_inv = 1. / det;
-    Vector3f tvec = ray.origin - v0;
+    Vector3f tvec = ray.origin - v0;    // s
     u = dotProduct(tvec, pvec) * det_inv;
     if (u < 0 || u > 1)
         return inter;
@@ -231,10 +232,15 @@ inline Intersection Triangle::getIntersection(Ray ray)
         return inter;
     t_tmp = dotProduct(e2, qvec) * det_inv;
 
-    // TODO find ray triangle intersection
-
-
-
+    //  find ray triangle intersection
+    if (t_tmp < 0)
+        return inter;
+    inter.coords = (1 - u - v) * v0 + u * v1 + v * v2;
+    inter.normal = normal;    // 面法线
+    inter.distance = t_tmp;   // 等于时间可能有点奇怪，从光线方程o + td就好理解了
+    inter.happened = true;
+    inter.m = this->m;
+    inter.obj = this;
 
     return inter;
 }

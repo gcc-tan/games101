@@ -93,8 +93,8 @@ Vector3f Scene::castRay(const Ray &ray, int depth) const
                 fresnel(ray.direction, N, m->ior, kr);
                 Vector3f reflectionDirection = reflect(ray.direction, N);
                 Vector3f reflectionRayOrig = (dotProduct(reflectionDirection, N) < 0) ?
-                                             hitPoint + N * EPSILON :
-                                             hitPoint - N * EPSILON;
+                                             hitPoint - N * EPSILON :
+                                             hitPoint + N * EPSILON;
                 hitColor = castRay(Ray(reflectionRayOrig, reflectionDirection),depth + 1) * kr;
                 break;
             }
@@ -123,11 +123,8 @@ Vector3f Scene::castRay(const Ray &ray, int depth) const
                     {
                         Vector3f lightDir = get_lights()[i]->position - hitPoint;
                         // square of the distance between hitPoint and the light
-                        float lightDistance2 = dotProduct(lightDir, lightDir);
                         lightDir = normalize(lightDir);
                         float LdotN = std::max(0.f, dotProduct(lightDir, N));
-                        Object *shadowHitObject = nullptr;
-                        float tNearShadow = kInfinity;
                         // is the point in shadow, and is the nearest occluding object closer to the object than the light itself?
                         bool inShadow = bvh->Intersect(Ray(shadowPointOrig, lightDir)).happened;
                         lightAmt += (1 - inShadow) * get_lights()[i]->intensity * LdotN;
