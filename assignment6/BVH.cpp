@@ -110,15 +110,18 @@ Intersection BVHAccel::getIntersection(BVHBuildNode* node, const Ray& ray) const
     {
         return {};
     }
-    bool flag = node->bounds.IntersectP(ray, ray.direction_inv, {});
-    std::cout << "log here:" << flag << std::endl;
     // 与整个包围盒没有交点
-    if (!flag)
+    if (!node->bounds.IntersectP(
+            ray, ray.direction_inv,
+            {ray.direction.x < 0, ray.direction.y < 0, ray.direction.z < 0})) 
     {
         return {};
     }
 
-    if (node->object)   // 叶子节点
+    // 叶子节点
+    // 其实使用 if (node->left == nullptr && node->right == nullptr) 判断是否是叶子节点更好理解
+    // 但是根据bvh的语义，这个判断更加简洁
+    if (node->object)
     {
         return node->object->getIntersection(ray);    // todo这里很奇怪，光线为啥不用引用
     }

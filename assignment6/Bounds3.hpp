@@ -111,18 +111,27 @@ inline bool Bounds3::IntersectP(const Ray& ray, const Vector3f& invDir,
      *   因为光线方程就是o + td，因此单位的速度向量表示单位时间走的方向和距离
      *   所以分母的 d dot_product N 表示速度向量在垂直平面方向上的投影，即单位时间走的距离
      *   两者相除就是时间
+     * 
+     * 以计算x对面为例，x对面的法线nx是(1, 0, 0)，可以化简并直接写出上面的表达式
+     * 
+     * 之前以为dirIsNeg没用，后面发现运行后看不到兔子....
+     * dirIsNeg的作用在于计算tmin和tmax，因为tmin表示进入对面的时间，tmax表出对面的时间
+     * 因为pMin表示的是下对面，pMax表示的是上对面。以x对面为例子，d的x分量如果是负数，那么表示的情况就是光线从上往下走
+     * 这种情况利用pMax算出来的是进入对面的时间tmin，与x是正的情况相反
      */ 
-    // 先计算x对面，x对面的法线nx是(1, 0, 0)，可以化简并直接写出上面的表达式
-    float tx_min = (pMin.x - ray.origin.x) * invDir.x;
-    float tx_max = (pMax.x - ray.origin.x) * invDir.x;
-    float ty_min = (pMin.y - ray.origin.y) * invDir.y;
-    float ty_max = (pMax.y - ray.origin.y) * invDir.y;
-    float tz_min = (pMin.z - ray.origin.z) * invDir.z;
-    float tz_max = (pMax.z - ray.origin.z) * invDir.z;
+    float t_enter = std::numeric_limits<float>::lowest(), t_exit = std::numeric_limits<float>::max();
+    float t_min, t_max;
+    for (int i = 0; i < 3; ++i)
+    {
+        t_min = (pMin[i] - ray.origin[i]) * invDir[i];
+        t_max = (pMax[i] - ray.origin[i]) * invDir[i];
+        if (dirIsNeg[i])
+            std::swap(t_min, t_max);
+        t_enter = std::max(t_enter, t_min);
+        t_exit = std::min(t_exit, t_max);
+    }
 
-    float t_enter = std::max({tx_min, ty_min, tz_min});
-    float t_exit = std::min({tx_max, ty_max, tz_max});
-    return t_enter < t_exit;
+    return t_enter < t_exit && t_enter >= 0;    // 这个大于等于0还是不能少的，因为会出现包围盒在d的反方向上
 }
 
 inline Bounds3 Union(const Bounds3& b1, const Bounds3& b2)

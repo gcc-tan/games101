@@ -26,6 +26,7 @@ void Renderer::Render(const Scene& scene)
      * 经过作业五的计算，光线向量与zNear并没有关系，因此就可以把相机不在原点，当成相机在原点的情况计算光线向量
     */
     Vector3f eye_pos(-1, 5, 10);
+    int m = 0;
     for (uint32_t j = 0; j < scene.height; ++j) {
         for (uint32_t i = 0; i < scene.width; ++i) {
             // generate primary ray direction
@@ -41,7 +42,7 @@ void Renderer::Render(const Scene& scene)
             Vector3f dir = Vector3f(x, y, -1);
             dir = normalize(dir);
             // Don't forget to normalize this direction!
-            scene.castRay(Ray(eye_pos, dir), 0);
+            framebuffer[m++] = scene.castRay(Ray(eye_pos, dir), 0);    // 居然没有更新framebuffer，帧缓存，难怪看不到
         }
         UpdateProgress(j / (float)scene.height);
     }
