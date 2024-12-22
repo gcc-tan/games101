@@ -17,16 +17,16 @@ Intersection Scene::intersect(const Ray &ray) const
 
 bool Scene::trace(
         const Ray &ray,
-        const std::vector<Object*> &objects,
+        const std::vector<Object*> &obj,
         float &tNear, uint32_t &index, Object **hitObject)
 {
     *hitObject = nullptr;
-    for (uint32_t k = 0; k < objects.size(); ++k) {
+    for (uint32_t k = 0; k < obj.size(); ++k) {
         float tNearK = kInfinity;
         uint32_t indexK;
         Vector2f uvK;
-        if (objects[k]->intersect(ray, tNearK, indexK) && tNearK < tNear) {
-            *hitObject = objects[k];
+        if (obj[k]->intersect(ray, tNearK, indexK) && tNearK < tNear) {
+            *hitObject = obj[k];
             tNear = tNearK;
             index = indexK;
         }

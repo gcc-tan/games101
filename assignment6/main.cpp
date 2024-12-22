@@ -9,7 +9,7 @@
 // lights) as well as set the options for the render (image width and height,
 // maximum recursion depth, field-of-view, etc.). We then call the render
 // function().
-int main(int argc, char** argv)
+int main()
 {
     Scene scene(1280, 960);
 

@@ -60,9 +60,9 @@ public:
     bool intersect(const Ray& ray, float& tnear,
                    uint32_t& index) const override;
     Intersection getIntersection(Ray ray) override;
-    void getSurfaceProperties(const Vector3f& P, const Vector3f& I,
-                              const uint32_t& index, const Vector2f& uv,
-                              Vector3f& N, Vector2f& st) const override
+    void getSurfaceProperties(const Vector3f& , const Vector3f& ,
+                              const uint32_t& , const Vector2f& ,
+                              Vector3f& N, Vector2f& ) const override
     {
         N = normal;
         //        throw std::runtime_error("triangle::getSurfaceProperties not
@@ -89,7 +89,7 @@ public:
         Vector3f max_vert = Vector3f{-std::numeric_limits<float>::infinity(),
                                      -std::numeric_limits<float>::infinity(),
                                      -std::numeric_limits<float>::infinity()};
-        for (int i = 0; i < mesh.Vertices.size(); i += 3) {
+        for (int i = 0; i < (int)mesh.Vertices.size(); i += 3) {
             std::array<Vector3f, 3> face_vertices;
             for (int j = 0; j < 3; j++) {
                 auto vert = Vector3f(mesh.Vertices[i + j].Position.X,
@@ -126,7 +126,7 @@ public:
         bvh = new BVHAccel(ptrs);
     }
 
-    bool intersect(const Ray& ray) { return true; }
+    bool intersect(const Ray&) { return true; }
 
     bool intersect(const Ray& ray, float& tnear, uint32_t& index) const
     {
@@ -150,7 +150,7 @@ public:
 
     Bounds3 getBounds() { return bounding_box; }
 
-    void getSurfaceProperties(const Vector3f& P, const Vector3f& I,
+    void getSurfaceProperties(const Vector3f&, const Vector3f& ,
                               const uint32_t& index, const Vector2f& uv,
                               Vector3f& N, Vector2f& st) const
     {
@@ -199,9 +199,9 @@ public:
     Material* m;
 };
 
-inline bool Triangle::intersect(const Ray& ray) { return true; }
-inline bool Triangle::intersect(const Ray& ray, float& tnear,
-                                uint32_t& index) const
+inline bool Triangle::intersect(const Ray&) { return true; }
+inline bool Triangle::intersect(const Ray&, float&,
+                                uint32_t&) const
 {
     return false;
 }

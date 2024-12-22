@@ -2,9 +2,9 @@
 #include <cassert>
 #include "BVH.hpp"
 
-BVHAccel::BVHAccel(std::vector<Object*> p, int maxPrimsInNode,
-                   SplitMethod splitMethod)
-    : maxPrimsInNode(std::min(255, maxPrimsInNode)), splitMethod(splitMethod),
+BVHAccel::BVHAccel(std::vector<Object*> p, int nodeMaxPrims,
+                   SplitMethod sp)
+    : maxPrimsInNode(std::min(255, nodeMaxPrims)), splitMethod(sp),
       primitives(std::move(p))
 {
     time_t start, stop;
@@ -31,7 +31,7 @@ BVHBuildNode* BVHAccel::recursiveBuild(std::vector<Object*> objects)
 
     // Compute bounds of all primitives in BVH node
     Bounds3 bounds;
-    for (int i = 0; i < objects.size(); ++i)
+    for (int i = 0; i < (int)objects.size(); ++i)
         bounds = Union(bounds, objects[i]->getBounds());
     if (objects.size() == 1) {
         // Create leaf _BVHBuildNode_
