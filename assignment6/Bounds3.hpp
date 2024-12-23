@@ -91,13 +91,11 @@ class Bounds3
         return (i == 0) ? pMin : pMax;
     }
 
-    inline bool IntersectP(const Ray& ray, const Vector3f& invDir,
-                           const std::array<int, 3>& dirisNeg) const;
+    inline bool IntersectP(const Ray& ray, float* enter_time = nullptr) const;
 };
 
 
-inline bool Bounds3::IntersectP(const Ray& ray, const Vector3f& invDir,
-                                const std::array<int, 3>& dirIsNeg) const
+bool Bounds3::IntersectP(const Ray& ray, float* enter_time/*= nullptr*/) const
 {
     // invDir: ray direction(x,y,z), invDir=(1.0/x,1.0/y,1.0/z), use this because Multiply is faster that Division
     // dirIsNeg: ray direction(x,y,z), dirIsNeg=[int(x>0),int(y>0),int(z>0)], use this to simplify your logic
@@ -119,6 +117,8 @@ inline bool Bounds3::IntersectP(const Ray& ray, const Vector3f& invDir,
      * 因为pMin表示的是下对面，pMax表示的是上对面。以x对面为例子，d的x分量如果是负数，那么表示的情况就是光线从上往下走
      * 这种情况利用pMax算出来的是进入对面的时间tmin，与x是正的情况相反
      */ 
+    const auto& invDir = ray.direction_inv;
+    const auto& dirIsNeg = ray.DirIsNeg();
     float t_enter = std::numeric_limits<float>::lowest(), t_exit = std::numeric_limits<float>::max();
     float t_min, t_max;
     for (int i = 0; i < 3; ++i)
@@ -130,6 +130,9 @@ inline bool Bounds3::IntersectP(const Ray& ray, const Vector3f& invDir,
         t_enter = std::max(t_enter, t_min);
         t_exit = std::min(t_exit, t_max);
     }
+
+    if (enter_time)
+        *enter_time = t_enter;
 
     return t_enter < t_exit && t_enter >= 0;    // 这个大于等于0还是不能少的，因为会出现包围盒在d的反方向上
 }

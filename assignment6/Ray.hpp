@@ -5,6 +5,7 @@
 #ifndef RAYTRACING_RAY_H
 #define RAYTRACING_RAY_H
 #include "Vector.hpp"
+#include <array>
 struct Ray{
     //Destination = origin + t*direction
     Vector3f origin;
@@ -25,5 +26,7 @@ struct Ray{
         os<<"[origin:="<<r.origin<<", direction="<<r.direction<<", time="<< r.t<<"]\n";
         return os;
     }
+    
+    std::array<int, 3> DirIsNeg() const { return {direction.x < 0, direction.y < 0, direction.z < 0};}
 };
 #endif //RAYTRACING_RAY_H

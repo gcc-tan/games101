@@ -111,9 +111,8 @@ Intersection BVHAccel::getIntersection(BVHBuildNode* node, const Ray& ray) const
         return {};
     }
     // 与整个包围盒没有交点
-    if (!node->bounds.IntersectP(
-            ray, ray.direction_inv,
-            {ray.direction.x < 0, ray.direction.y < 0, ray.direction.z < 0})) 
+    if (!node->bounds.IntersectP(ray))
+            
     {
         return {};
     }
