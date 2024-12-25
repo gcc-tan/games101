@@ -105,7 +105,7 @@ Intersection BVHAccel::Intersect(const Ray& ray) const
 
 Intersection BVHAccel::getIntersection(BVHBuildNode* node, const Ray& ray) const
 {
-    // TODO Traverse the BVH to find intersection
+    //  Traverse the BVH to find intersection
     if (node == nullptr)
     {
         return {};
@@ -122,7 +122,10 @@ Intersection BVHAccel::getIntersection(BVHBuildNode* node, const Ray& ray) const
     // 但是根据bvh的语义，这个判断更加简洁
     if (node->object)
     {
-        return node->object->getIntersection(ray);    // todo这里很奇怪，光线为啥不用引用
+        // todo这里很奇怪，光线为啥不用引用
+        // 好吧为了重新计算direction的direction_inv，说是为了加速（将除法改成乘法），然后引入了对象拷贝的开销
+        // 真的能够加速吗....
+        return node->object->getIntersection(ray);    
     }
 
     Intersection inter_left;

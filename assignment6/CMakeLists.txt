@@ -6,7 +6,7 @@ set(CMAKE_BUILD_TYPE Debug)
 
 add_executable(RayTracing main.cpp Object.hpp Vector.cpp Vector.hpp Sphere.hpp global.hpp Triangle.hpp Scene.cpp
         Scene.hpp Light.hpp AreaLight.hpp BVH.cpp BVH.hpp Bounds3.hpp Ray.hpp Material.hpp Intersection.hpp
-        Renderer.cpp Renderer.hpp)
+        Renderer.cpp Renderer.hpp rectangle.hpp)
 
 target_compile_options(RayTracing PRIVATE -Wall -Wextra -pedantic -Wshadow -Wreturn-type -fsanitize=undefined)
 target_compile_features(RayTracing PRIVATE cxx_std_17)

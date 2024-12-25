@@ -91,11 +91,11 @@ class Bounds3
         return (i == 0) ? pMin : pMax;
     }
 
-    inline bool IntersectP(const Ray& ray, float* enter_time = nullptr) const;
+    inline bool IntersectP(const Ray& ray, float* enter_time = nullptr, float* exit_time = nullptr) const;
 };
 
 
-bool Bounds3::IntersectP(const Ray& ray, float* enter_time/*= nullptr*/) const
+bool Bounds3::IntersectP(const Ray& ray, float* enter_time/*= nullptr*/, float* exit_time/* = nullptr*/) const
 {
     // invDir: ray direction(x,y,z), invDir=(1.0/x,1.0/y,1.0/z), use this because Multiply is faster that Division
     // dirIsNeg: ray direction(x,y,z), dirIsNeg=[int(x>0),int(y>0),int(z>0)], use this to simplify your logic
@@ -133,8 +133,12 @@ bool Bounds3::IntersectP(const Ray& ray, float* enter_time/*= nullptr*/) const
 
     if (enter_time)
         *enter_time = t_enter;
+    if (exit_time)
+        *exit_time = t_exit;
 
-    return t_enter < t_exit && t_enter >= 0;    // 这个大于等于0还是不能少的，因为会出现包围盒在d的反方向上
+    // 判断离开时间大于等于0，因为离开时间都小于零那就是反方向，根本不相交。
+    // 那为什么不判断进入时间呢大于等于0呢？因为如果是透明材质，enter_time是正常的小于0的
+    return t_enter < t_exit && t_exit >= 0;    
 }
 
 inline Bounds3 Union(const Bounds3& b1, const Bounds3& b2)
