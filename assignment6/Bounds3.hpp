@@ -58,6 +58,7 @@ class Bounds3
                                 fmin(pMax.z, b.pMax.z)));
     }
 
+    // 点相对于包围盒范围的三个维度的比例
     Vector3f Offset(const Vector3f& p) const
     {
         Vector3f o = p - pMin;

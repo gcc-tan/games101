@@ -14,6 +14,7 @@
 #include "Bounds3.hpp"
 #include "Intersection.hpp"
 #include "Vector.hpp"
+#include <vector>
 
 struct BVHBuildNode;
 // BVHAccel Forward Declarations
@@ -41,16 +42,18 @@ public:
     BVHBuildNode* recursiveBuild(std::vector<Object*>objects);
 
     // BVHAccel Private Data
-    const int maxPrimsInNode;
+    const int maxPrimsInNode;    // 叶子节点中最大的图元数量
     const SplitMethod splitMethod;
-    std::vector<Object*> primitives;
+    std::vector<Object*> primitives;    // bvh管理的图元
+
+    const static int bucketSize = 23;
 };
 
 struct BVHBuildNode {
     Bounds3 bounds;    // 节点表示的包围盒范围
     BVHBuildNode *left;
     BVHBuildNode *right;
-    Object* object;
+    std::vector<Object*> object;
 
 public:
     int splitAxis=0, firstPrimOffset=0, nPrimitives=0;
@@ -58,7 +61,6 @@ public:
     BVHBuildNode(){
         bounds = Bounds3();
         left = nullptr;right = nullptr;
-        object = nullptr;
     }
 };
 
