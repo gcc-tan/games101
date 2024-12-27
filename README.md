@@ -28,3 +28,25 @@
 ## 作业五
 
 ![](doc/img/games101作业五截图.JPG)
+
+
+
+## 作业六
+
+![](doc/img/games101作业6结果.JPG)
+
+
+
+将MeshTriangle::MeshTriangle的bvh = new BVHAccel(ptrs, 1, BVHAccel::SplitMethod::NAIVE);
+
+改成5之后且不开编译优化对比两种划分方法：
+
++ SAH。跑两次6049ms左右
+
+  <img src="doc/img/bvh_sah_result.JPG" style="zoom:60%;" />
+
++ NAIVE。跑两次6609ms左右
+
+  <img src="doc/img/bvh_naive_result.JPG" style="zoom:60%;" />
+
+在原来基础上，应该是提升(6609 - 6049) / 6609=8%左右，还是有不错的效果，鉴于我实现的还有些我知道的没有完善的地方。
