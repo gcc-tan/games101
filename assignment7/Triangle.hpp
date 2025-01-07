@@ -73,6 +73,7 @@ public:
     Vector3f evalDiffuseColor(const Vector2f&) const override;
     Bounds3 getBounds() override;
     void Sample(Intersection &pos, float &pdf){
+        // https://math.stackexchange.com/questions/18686/uniform-random-point-in-triangle-in-3d
         float x = std::sqrt(get_random_float()), y = get_random_float();
         pos.coords = v0 * (1.0f - x) + v1 * (x * (1.0f - y)) + v2 * (x * y);
         pos.normal = this->normal;
@@ -252,7 +253,17 @@ inline Intersection Triangle::getIntersection(Ray ray)
         return inter;
     t_tmp = dotProduct(e2, qvec) * det_inv;
 
-    // TODO find ray triangle intersection
+    // find ray triangle intersection
+
+    //  find ray triangle intersection
+    if (t_tmp < 0)
+        return inter;
+    inter.coords = (1 - u - v) * v0 + u * v1 + v * v2;
+    inter.normal = normal;    // 面法线
+    inter.distance = t_tmp;   // 等于时间可能有点奇怪，从光线方程o + td就好理解了
+    inter.happened = true;
+    inter.m = this->m;
+    inter.obj = this;
 
     return inter;
 }
