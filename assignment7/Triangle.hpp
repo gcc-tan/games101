@@ -198,6 +198,7 @@ public:
     
     void Sample(Intersection &pos, float &pdf){
         bvh->Sample(pos, pdf);
+        // 嗯，这个emit的获取放到了这个MeshTriangle这里
         pos.emit = m->getEmission();
     }
     float getArea(){

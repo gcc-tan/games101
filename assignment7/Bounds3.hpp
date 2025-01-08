@@ -110,7 +110,9 @@ inline bool Bounds3::IntersectP(const Ray& ray, const Vector3f& invDir,
     }
 
 
-    return t_enter < t_exit && t_exit >= 0;    
+    // t_enter表示光线的进入时间，t_exit表示出去的时间，由于几面墙和光源都是轴对称的平面，肯定在某个轴上没有厚度，就会导致t_enter == t_exit
+    // 我说我怎么渲染出来这么慢，找了我1天半，因为之前的兔子渲染是好的，都没怀疑到这个上面来...
+    return t_enter <= t_exit && t_exit >= 0;    
 }
 
 inline Bounds3 Union(const Bounds3& b1, const Bounds3& b2)

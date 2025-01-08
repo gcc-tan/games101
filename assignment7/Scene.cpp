@@ -75,6 +75,10 @@ Vector3f Scene::castRay(const Ray &ray, int depth) const
     return shade(p, ray.direction);
 }
 
+static float dotProductPositive(const Vector3f &a, const Vector3f &b)
+{
+    return std::max(0.f, dotProduct(a, b));
+}
 
 // 作业里有提示，这个wo和课程ppt里面的方向是相反的
 // 因此下面代码的wo是说从相机（当前观察方向）到着色点p的方向
@@ -99,7 +103,7 @@ Vector3f Scene::shade(const Intersection& p, Vector3f wo) const
     if (inter.happened && std::fabs(inter.distance - distance) < EPSILON)    
     {
         // ws方向，感觉后面一个应该有问题
-        l_dir = inter.emit * inter.m->eval(wo, ws, p.normal) * dotProduct(ws, inter.normal) / (distance * distance) / pdf_light;
+        l_dir = x.emit * p.m->eval(wo, ws, p.normal) * dotProductPositive(ws, p.normal) * dotProductPositive(-ws, x.normal)/ (distance * distance) / pdf_light;
     }
 
     // 间接光照
@@ -111,7 +115,7 @@ Vector3f Scene::shade(const Intersection& p, Vector3f wo) const
         if (q.happened && !q.m->hasEmission())    // 这个随机采样的wi方向打到了不发光的物体
         {
             l_indir = shade(q, wi) * p.m->eval(wo, wi, p.normal) *
-                    dotProduct(wi, p.normal) / p.m->pdf(wo, wi, p.normal) / RussianRoulette;
+                    dotProductPositive(wi, p.normal) / p.m->pdf(wo, wi, p.normal) / RussianRoulette;
         }
     }
 
