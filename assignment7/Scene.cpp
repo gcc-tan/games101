@@ -88,6 +88,15 @@ Vector3f Scene::shade(const Intersection& p, Vector3f wo) const
     {
         return Vector3f(0);
     }
+    /*
+        如果着色点正好落在光源上，那么ws向量就肯定和p.normal和x.normal两个向量垂直，自然直接光照l_dir就会是0。
+        其实应该都走不到里面的逻辑，因为我判断着色点p和光源采样点x之间有没有遮挡使用了距离。如果p和x在光源上，那么inter.coords == p，光线与光源平面的交点就是光线的起点p，\
+        那么std::fabs(inter.distance - distance) < EPSILON，这个判断显然就不满足条件
+    */
+    if (p.m->hasEmission())    
+    {
+        return p.m->getEmission();
+    }
     // 先对面光源均匀采样，采样点的位置用x表示
     float pdf_light;
     Intersection x;
@@ -102,7 +111,6 @@ Vector3f Scene::shade(const Intersection& p, Vector3f wo) const
     Vector3f l_dir(0);
     if (inter.happened && std::fabs(inter.distance - distance) < EPSILON)    
     {
-        // ws方向，感觉后面一个应该有问题
         l_dir = x.emit * p.m->eval(wo, ws, p.normal) * dotProductPositive(ws, p.normal) * dotProductPositive(-ws, x.normal)/ (distance * distance) / pdf_light;
     }
 
