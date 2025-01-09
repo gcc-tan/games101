@@ -4,6 +4,8 @@
 #include "Scene.hpp"
 
 #pragma once
+
+#include "thread_pool.hpp"
 struct hit_payload
 {
     float tNear;
@@ -18,4 +20,5 @@ public:
     void Render(const Scene& scene);
 
 private:
+    std::threadpool executor{6};
 };
