@@ -109,7 +109,7 @@ Vector3f Scene::shade(const Intersection& p, Vector3f wo) const
     auto inter = intersect(Ray(p.coords, ws));
     // 没有遮挡则计算直接光照
     Vector3f l_dir(0);
-    if (inter.happened && std::fabs(inter.distance - distance) < EPSILON)    
+    if (inter.happened && std::fabs(inter.distance - distance) < EPSILON * 10)    
     {
         l_dir = x.emit * p.m->eval(wo, ws, p.normal) * dotProductPositive(ws, p.normal) * dotProductPositive(-ws, x.normal)/ (distance * distance) / pdf_light;
     }

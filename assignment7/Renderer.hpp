@@ -20,5 +20,5 @@ public:
     void Render(const Scene& scene);
 
 private:
-    std::threadpool executor{6};
+    std::threadpool executor{8};
 };
