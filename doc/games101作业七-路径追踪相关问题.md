@@ -151,3 +151,31 @@ f 1 3 4
 因为浮点数的计算精度，可以适当的提高这个`std::fabs(inter.distance - distance) < EPSILON`判断中EPSILON的值，这样就能保证更多的点受到了直接光照，这样包括间接光照在内，整个场景的亮度都会提升。下图是我将EPSILON扩大10倍之后，其他参数不变的效果
 
 <img src="img/connell_box_epsilon_time10.JPG" style="zoom:80%;" />
+
+
+
+
+
+
+
+## 不太理解的代码
+
+` Scene::sampleLight`计算pdf的代码最终其实是通过下面的函数调用计算的。如果按照对光源均匀采样，其实就是pdf就应该是课件中的1/A。下面这个p去开方的作用有点难以理解。理论上一个均匀的[0-1]的随机数列，开方之后应该不再均匀，而且是向1的那侧分布较密，这样还能是均匀采样吗？
+
+```c++
+void BVHAccel::getSample(BVHBuildNode* node, float p, Intersection &pos, float &pdf){
+    if(node->left == nullptr || node->right == nullptr){
+        node->object->Sample(pos, pdf);
+        pdf *= node->area;
+        return;
+    }
+    if(p < node->left->area) getSample(node->left, p, pos, pdf);
+    else getSample(node->right, p - node->left->area, pos, pdf);
+}
+void BVHAccel::Sample(Intersection &pos, float &pdf){
+    float p = std::sqrt(get_random_float()) * root->area;
+    getSample(root, p, pos, pdf);
+    pdf /= root->area;
+}
+```
+
