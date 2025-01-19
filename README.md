@@ -27,13 +27,13 @@
 
 ## 作业五
 
-![](doc/img/games101作业五截图.JPG)
+<img src="doc/img/games101作业五截图.JPG" style="zoom:80%;" />
 
 
 
 ## 作业六
 
-![](doc/img/games101作业6结果.JPG)
+<img src="doc/img/games101作业6结果.JPG" style="zoom:80%;" />
 
 
 
@@ -50,3 +50,11 @@
   <img src="doc/img/bvh_naive_result.JPG" style="zoom:60%;" />
 
 在原来基础上，应该是提升(6609 - 6049) / 6609=8%左右，还是有不错的效果，鉴于我实现的还有些我知道的没有完善的地方。
+
+
+
+## 作业七
+
+256spp的效果，没记错好像8线程，intel 8700的cpu跑了10多分钟。效果还是可以的
+
+<img src="doc/img/cornellbox_256_spp.JPG" style="zoom:80%;" />
