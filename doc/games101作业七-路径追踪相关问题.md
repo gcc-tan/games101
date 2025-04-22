@@ -91,13 +91,74 @@ f 1 3 4
 
 > 其实应该都走不到里面的逻辑，因为我判断着色点p和光源采样点x之间有没有遮挡使用了距离。如果p和x在光源上，那么inter.coords == p，光线与光源平面的交点就是光线的起点p，那么std::fabs(inter.distance - distance) < EPSILON，这个判断显然就不满足条件
 
+## 性能分析
+
+### 打开编译优化
+
+作为一个被编译折腾得不轻的c++工程师，第一步提高渲染效率的方法就是打开编译优化。这个cmake里面好解决，加个下面的命令，就会打开gcc的O3的编译优化。可以在CMakeFiles目录的flags.make文件中看到是否生效
+
+```
+set(CMAKE_BUILD_TYPE Release)
+```
+
+性能对比就不贴图了，按照经验至少有2-3倍的性能提升。
+
+### perf分析性能瓶颈
+
+编译优化之后，在spp=4的情况下。需要177s渲染（直接跑，没有使用perf）。还是太慢了，因此需要请出perf对程序性能进行分析。
 
 
-## 多线程部分
+
+如果使用perf记录数据，时间是下图所示的178秒。记录后会在当前目录生成一个perf.data的文件
+
+![](img/perf_for_spp4.JPG)
+
+使用perf report命令，就会默认读取perf.data文件，读取之后的输出如下。
+
+![](img/perf_report_for_spp4.JPG)
+
+第一行是记录了57450750000个cpu-clock的事件。然后在这个事件中：
+
++ 56%的消耗在`std::mersenne_twister_engine`。std::mt19937是C++标准库中的一个伪随机数生成器类，它实现了梅森旋转算法（Mersenne Twister）
++ 13%的消耗在`std::random_device::_M_init`。random_device对象的构造。
+
+我们看下关键代码：
+
+```c++
+inline float get_random_float()
+{
+    std::random_device dev;
+    std::mt19937 rng(dev());
+    std::uniform_real_distribution<float> dist(0.f, 1.f); // distribution in range [1, 6]
+
+    return dist(rng);
+}
+```
+
+这下就能明白性能瓶颈在哪里了。一个是random_device的构造和mt19937的构造。通过stackoverflow的链接也能证明。[how-do-i-generate-thread-safe-uniform-random-numbers](https://stackoverflow.com/questions/21237905/how-do-i-generate-thread-safe-uniform-random-numbers)
+
+> perf的输出中还有个有点奇怪的地方——get_random_float的消耗占了21%？然而get_random_float函数的两个函数调用56%+13%都超过了21%？这个perf的输出不能这么理解，perf工作方式就是每次记录cpu-clock事件时pc(程序计数器)位于哪个symbol。因此在get_random_float中，能内联的部分都算到了get_random_float中。像不能内联的都mersenne_twister_engine和`random_device::_M_init`会单独统计。因此21%可以说是get_random_float不能内联的函数调用消耗的时间，不包括前面说的两个函数。
+
+解决方法也很简单，将这两个对象的构造声明为static（程序声明周期唯一，这里暂时只有单线程不会有问题）或者是thread_local（单线程唯一）。这里选用后者，因为后面需要使用多线程加速。
+
+```c++
+inline float get_random_float()
+{
+    thread_local std::random_device dev;
+    thread_local std::mt19937 rng(dev());
+    std::uniform_real_distribution<float> dist(0.f, 1.f); // distribution in range [1, 6]
+
+    return dist(rng);
+}
+```
+
+修改之后还是很明显，从177s->6s。提升效果显著。感谢perf，perf还是很强大。
+
+![](img/thread_local_spp4.JPG)
+
+### 多线程加速
 
 比较简单，使用了一个线程池，这样代码更好理解。其实如果线程池对spp进行划分（每个线程直接执行castRay），而不是像现在这样对行操作（每个线程执行row_oper）代码改动会非常少而且也好理解。但是带来的问题就是线程池的每个线程只执行一次castRay，这样计算时间非常短，主要的消耗就在，线程池的线程归还和切换上。此时可以用top -H -p pid查看运行状态，发现单个核心CPU负载在40%左右。而改用这种划分单个核心可以跑满100%。
-
-
 
 ```c++
    auto row_oper = [imageAspectRatio, &scene ,scale, spp, &eye_pos](int param_j) -> std::vector<Vector3f> {
