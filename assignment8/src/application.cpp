@@ -1,4 +1,6 @@
 #include <iostream>
+#include <chrono>
+#include <thread>
 
 #include "application.h"
 #include "rope.h"
@@ -23,9 +25,9 @@ void Application::init() {
 
   glColor3f(1.0, 1.0, 1.0);
   // Create two ropes 
-  ropeEuler = new Rope(Vector2D(0, 200), Vector2D(-400, 200), 3, config.mass,
+  ropeEuler = new Rope(Vector2D(0, 200), Vector2D(-400, 200), 30, config.mass,
                        config.ks, {0});
-  ropeVerlet = new Rope(Vector2D(0, 200), Vector2D(-400, 200), 3, config.mass,
+  ropeVerlet = new Rope(Vector2D(0, 200), Vector2D(-400, 200), 30, config.mass,
                         config.ks, {0});
 }
 
@@ -68,6 +70,8 @@ void Application::render() {
     glEnd();
 
     glFlush();
+
+    // std::this_thread::sleep_for(std::chrono::milliseconds(5));
   }
 }
 
