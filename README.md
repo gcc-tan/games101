@@ -57,4 +57,15 @@
 
 256spp的效果，没记错好像8线程，intel 8700的cpu跑了10多分钟。效果还是可以的
 
+update：优化之后时间了很多
+
 <img src="doc/img/cornellbox_256_spp.JPG" style="zoom:80%;" />
+
+
+
+## 作业八
+
+绿色的采用verlet积分，蓝色的是半隐式欧拉。图一是刚开始，图二是运行一段时间后。图二隐式欧拉变直了是由于弹簧的内部阻尼导致沿着弹簧上的能量被消耗，但是垂直弹簧方向没有阻尼，所以会钟摆运动一直下去
+
+<img src="doc/img/作业8截图1.JPG" style="zoom:67%;" />
+<img src="doc/img/作业8截图2.JPG" style="zoom:67%;" />
